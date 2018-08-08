@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>用户</title>
+	<link rel="stylesheet" type="text/css" href="/assets/css/reset.css">
+	<link href="/assets/css/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="/assets/css/element-ui1413.css">
+	<link rel="stylesheet" type="text/css" href="/assets/css/components.css">
+
+</head>
+<body>
+<div id="app">
+	<div class="main-content">
+
+		<div class="search-module">
+			<el-form
+					:inline="true"
+					:model="formData"
+					label-position="right"
+					label-width="75px"
+					class="demo-form-inline">
+				<el-form-item label="店铺编号:">
+					<el-input v-model="formData.store_code" placeholder="店铺编号"></el-input>
+				</el-form-item>
+				<el-form-item label="邮箱:">
+					<el-input v-model="formData.store_email" placeholder="邮箱"></el-input>
+				</el-form-item>
+				
+				<el-form-item label="负责人:">
+					<el-select  v-model="formData.owner" filterable clearable placeholder="请选择">
+						<el-option label="请选择" value=""></el-option>
+						<el-option v-for="ow in ownersData" :label="ow.username" :value="ow.id"></el-option>
+					</el-select>
+				</el-form-item>
+
+				<el-form-item>
+					<button type="button" class="btn" @click="onSubmit"><i class="fa fa-search"></i>&nbsp;查询</button>
+				</el-form-item>
+			</el-form>
+		</div>
+
+		<div class="operation-module">
+			<button type="button" class="o-btn" @click.stop="store_add = true"><i class="fa fa-plus"></i>新增</button>
+
+			<el-dialog title="新增" v-model="store_add" size="tiny" align="left"
+					   class="reviseForm" top="5%">
+				<el-form :model="addStoreForm" :rules="reviseRules" ref="addStoreForm" label-width="100px"
+						 class="demo-ruleForm">
+					
+					<el-form-item label="店铺编码:" prop="store_code">
+						<el-input v-model="addStoreForm.store_code"></el-input>
+						
+					</el-form-item>
+					
+					<el-form-item label="邮箱:" prop="store_email">
+						<el-input v-model="addStoreForm.store_email"></el-input>
+					
+					</el-form-item>
+					<el-form-item label="密码:" prop="store_passw" >
+						<el-input v-model="addStoreForm.store_passw" type="password"></el-input>
+					
+					</el-form-item>
+					
+                    <el-form-item label="负责人:" prop="owner">
+                        <el-select  v-model="addStoreForm.owner"   multiple placeholder="请选择"  @change="change">
+                            <el-option v-for="ow in ownersData" :label="ow.username" :value="ow.id"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    
+                    <el-form-item label="品牌:" prop="brand">
+                        <el-select  v-model="addStoreForm.brand"   placeholder="请选择"  >
+                            <el-option v-for="br in brandData" :label="br.brand_name" :value="br.id"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    
+					
+				</el-form>
+				<span slot="footer" class="dialog-footer">
+                    <el-button @click.stop="resetForm('addStoreForm')">取 消</el-button>
+                    <el-button type="primary" @click="addForm('addStoreForm',addStoreForm)">确 定</el-button>
+                </span>
+			</el-dialog>
+		</div>
+
+		<div class="table-module">
+			<template>
+				<el-table :data="tableData" :highlight-current-row="true" style="width: 100%">
+					<el-table-column type="index" label="序号" width="100" align="center"></el-table-column>
+					<el-table-column prop="id" label="ID" width="100" align="center"></el-table-column>
+					<el-table-column prop="store_code" label="店铺编号" width="300" align="center"></el-table-column>
+					<el-table-column prop="owner" label="负责人" width="" align="center"></el-table-column>
+					<el-table-column prop="store_email" label="邮箱" align="center"></el-table-column>
+                    <el-table-column prop="brand" label="品牌" width="" align="center"></el-table-column>
+					<!--<el-table-column prop="store_passw" label="密码" align="center" type="password"></el-table-column>-->
+                    <el-table-column prop="username" label="添加人" width="300" align="center"></el-table-column>
+					
+					<el-table-column label="操作" width="200" align="center">
+						<template scope="scope">
+							<div class="">
+								<a href="#" class="alink" @click="handleEdit(scope.$index, scope.row)">修改</a>
+								<!--<a href="#" class="alink" @click="doDelete(scope.$index,scope.row)">删除</a>-->
+
+							</div>
+						</template>
+					</el-table-column>
+				</el-table>
+			</template>
+			
+			<el-dialog title="修改" v-model="reviseVisible" size="tiny" align="left" class="reviseForm" top="5%">
+				<el-form :model="reviseForm" :rules="reviseRules" ref="reviseForm" label-width="100px"
+						 class="demo-ruleForm">
+					
+					<!--<div class="dialog-title">基本信息</div>-->
+					
+					<el-form-item label="店铺编号" prop="store_code">
+						<el-input v-model="reviseForm.store_code"></el-input>
+					</el-form-item>
+					<el-form-item label="邮箱" prop="store_email">
+						<el-input v-model="reviseForm.store_email"></el-input>
+					</el-form-item>
+					<el-form-item label="密码" prop="store_passw" >
+						<el-input v-model="reviseForm.store_passw" type="password"></el-input>
+					</el-form-item>
+					
+					
+					
+					<el-form-item label="负责人:" prop="owner">
+						<el-select  v-model="reviseForm.owner"  multiple placeholder="请选择" >
+							<el-option v-for="ow in ownersData" :label="ow.username" :value="ow.id"></el-option>
+						</el-select>
+					</el-form-item>
+                    <el-form-item label="品牌:" prop="brand">
+                        <el-select  v-model="reviseForm.brand"   placeholder="请选择" >
+                            <el-option v-for=" br in brandData" :label="br.brand_name" :value="br.id"></el-option>
+                        </el-select>
+                    </el-form-item>
+				</el-form>
+				
+				<span slot="footer" class="dialog-footer">
+					<el-button @click="reviseVisible = false">取 消</el-button>
+					<el-button type="primary" @click="submitForm('reviseForm',reviseForm),onSubmit">确 定</el-button>
+				</span>
+			</el-dialog>
+			<el-pagination @size-change="handleSizeChange"
+						   @current-change="handleCurrentChange"
+						   :current-page="currentPage"
+						   :page-sizes="[10, 20, 30, 40]"
+						   :page-size="pageSize"
+						   layout="total, sizes, prev, pager, next, jumper"
+						   :total="total"
+						   class="pagination">
+			</el-pagination>
+		</div>
+		
+		
+		<el-dialog title="删除" :close-on-click-modal="false" v-model="deleteVisible" size="tiny" align="left"  class="ruleAddForm">
+			<span>确定要删除吗？</span>
+			<span slot="footer" class="dialog-footer">
+			<el-button @click="deleteVisible = false">取 消</el-button>
+			<el-button type="primary" @click="doDelete()">确 定</el-button>
+		</span>
+		</el-dialog>
+		
+	</div>
+</div>
+
+<script src="/assets/js/jquery-2.1.4.min.js"></script>
+<script src="/assets/js/vue-2.4.0.js"></script>
+<script src="/assets/js/vue-resource.js"></script>
+<script src="/assets/js/element-ui1413.js"></script>
+<script src="/assets/js/interceptors.js"></script>
+<script src="/assets/js/fun.js"></script><script>
+
+	var Main = {
+		mixins: [myMixin],
+		data: function () {
+			return {
+				formData: {
+					store_code: '',
+					owner: '',
+					store_email:'',
+					department_ids: '',
+					currentPage: myMixin.data().currentPage,
+					pageSize: myMixin.data().pageSize,
+				},
+    
+				reviseVisible: false,
+				deleteVisible: false,
+				selecteddRow: false,
+				store_add: false,
+				user_delete: false,
+				index: null,
+                brandData: [],
+				tableData: [],
+				ownersData:[],
+                updateData:[],
+				addStoreForm: {
+				    brand:'',
+					store_code: '',
+					owner:'',
+					store_email:'',
+					store_passw:''
+     
+				},
+				reviseForm: {
+                    brand:[],
+                    store_code: '',
+                    owner: [],
+					store_email:'',
+					store_passw:''
+                   
+				},
+				dropdown: {
+				    role: [],
+					department: [],
+					department_edit: [],
+					department_all: [],
+				},
+				company: [],
+				user_group: [],
+				is_admin: false,
+				reviseRules: {
+					store_code: [
+						{required: true, message: '请输入店铺编码', trigger: 'blur'},
+					],
+					/*owner: [
+						{required: true, message: '请选择', trigger: 'blur'}
+					]*/
+				}
+			}
+		},
+ 
+		methods: {
+			
+			//分页
+			handleSizeChange: function (val) {
+				this.pageSize = val;
+				this.formData.currentPage = this.currentPage;
+				this.formData.pageSize = val;
+				this.getList(this.formData);
+			},
+			handleCurrentChange: function (val) {
+				this.currentPage = val;
+				this.formData.currentPage = val;
+				this.formData.pageSize = this.pageSize;
+				this.getList(this.formData);
+			},
+			
+			change:function(){
+				console.log(this.addStoreForm.owner,'===========');
+			},
+			upchange:function(){
+			  console.log(this.reviseForm.owner,'===========')
+			},
+
+			//重置
+			resetForm: function (formName) {
+				this.store_add = false
+				this.$refs[formName].resetFields();
+			},
+			//新增
+			addForm: function (formName, data) {
+				var that = this;
+
+				
+				
+				this.$refs[formName].validate(function (valid) {
+					if (valid) {
+						Vue.http.post('/store/add', data, {emulateJSON: true}).then(function (response) {
+							if (response.body.error == 0) {
+								location.reload();
+							} else {
+								that.error(response.body.msg);
+							}
+						}, function (response) {
+							that.error(response.body.msg);
+						});
+					} else {
+						that.error('表单填写有误');
+						return false;
+					}
+				});
+			},
+			//修改
+			handleEdit: function (index, row) {
+			    var that=this;
+			   
+				
+                Vue.http.post('/store/edit_before', row, {emulateJSON: true}).then(function (response) {
+                 
+                  that.reviseForm.owner=response.body.data;
+                }, function (response) {
+                
+                });
+				that.reviseVisible = true;
+
+                that.index = index;
+
+				for (var key in row) {
+                    that.reviseForm[key] = row[key];
+					
+                    if(key == 'department_ids' && key == '') {
+                        that.reviseForm.department_ids = [];
+                    }
+				
+                    
+					
+					//patch
+                    Array.prototype.contains = function (obj) {
+                        var i = that.length;
+                        while (i--) {
+                            if (that[i] == obj) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+                    
+                    if(key == 'department_ids') {
+                        that.dropdown.department_edit = [];
+					    var department_edit = [];
+					    var dep_all = that.dropdown.department_all;
+					    for(var i in dep_all) {
+					        var depart_ids = (row[key] + '').split(',');
+							var bool = depart_ids.contains(dep_all[i].id);
+							if(bool) {
+                                department_edit.push(dep_all[i]);
+							}
+						}
+                        that.dropdown.department_edit = department_edit;
+					    //batch 如果是超级管理员，那么显示全部的部门
+						if(that.is_admin == true) {
+						    that.dropdown.department_edit = dep_all;
+						}
+					}
+     
+				}
+    
+
+			},
+			//下拉条件 负责人
+   
+			
+			submitForm: function (formName, data) {
+				var that = this;
+				this.$refs[formName].validate(function (valid) {
+				 
+					if (valid) {
+					 
+						Vue.http.post('/store/edit', data, {emulateJSON: true}).then(function (response) {
+							console.log(response);
+							if (response.body.error == 0) {
+								for (var key in data) {
+									that.tableData[that.index][key] = data[key];
+								}
+								that.reviseVisible = false;
+								that.success('修改成功');
+							} else {
+								that.error(response.body.msg);
+							}
+						}, function (response) {
+							that.error(response.body.msg);
+						});
+					} else {
+						that.error('表单填写有误');
+						return false;
+					}
+				});
+			},
+			
+			doDelete: function (val, row) {
+				if(row) {
+					this.deleteVisible = true;
+					this.selecteddRow = row;
+					return
+				}
+				
+				var that = this;
+				var id = this.selecteddRow.id;
+				
+				Vue.http.get('/store/delete?id=' + id).then(function (response) {
+					if (response.body.error == 0) {
+						that.success('删除成功');
+						that.deleteVisible = false;
+						that.getList(that.formData);
+						
+					} else {
+						that.error(response.body.msg);
+					}
+				}, function (response) {
+					that.error(response.body.msg);
+				});
+			},
+			
+			//查询
+			onSubmit: function () {
+
+                var that = this;
+				this.currentPage = 1
+                this.formData.currentPage = this.currentPage;
+                this.formData.pageSize = this.pageSize;
+                Vue.http.post('/store/index', this.formData, {emulateJSON: true}).then(function (response) {
+                    that.tableData = response.body.data;
+                    that.total = response.body.total;
+                    // that.dropdown = response.body.data.dropdown;
+                }, function (response) {
+                    console.log("查询失败")
+                });
+			},
+			getList: function(option) {
+
+                var that = this;
+                Vue.http.post('/store/index', option, {emulateJSON: true}).then(function (response) {
+                	console.log( response.body.data);
+					that.tableData = response.body.data;
+					that.total = response.body.total;
+					that.ownersData = response.body.ownersData;
+					that.brandData  = response.body.brandData;
+     
+					console.log(response);
+                    // that.dropdown = response.body.data.dropdown;
+                }, function (response) {
+                    console.log("查询失败")
+                });
+			},
+	
+		},
+		created: function () {
+		    var that = this;
+		    this.getList(this.formData);
+		}
+	};
+	var Ctor = Vue.extend(Main);
+	Vue.http.options.emulateJSON = true;
+	new Ctor().$mount('#app');
+</script>
+</body>
+</html>

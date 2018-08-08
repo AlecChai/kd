@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>用户管理</title>
+	<link rel="stylesheet" type="text/css" href="/assets/css/reset.css">
+	<link href="/assets/css/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="/assets/css/element-ui1413.css">
+	<link rel="stylesheet" type="text/css" href="/assets/css/components.css">
+
+</head>
+<body>
+<div id="app">
+	<div class="main-content">
+		
+		<div class="search-module">
+			<el-form
+					:inline="true"
+					:model="formData"
+					label-position="right"
+					label-width="75px"
+					class="demo-form-inline">
+				
+				<el-form-item label="类别:">
+					<el-autocomplete
+						class="inline-input"
+						v-model="formData.category_name"
+						:fetch-suggestions="querySearchAsync"
+						placeholder="请输入类别"
+						:trigger-on-focus="false"
+						@select="handleFormSelect"
+				></el-autocomplete>
+					
+				</el-form-item>
+				
+			<!--	<el-form-item label="类别:" >
+					<el-select  v-model="formData.category_name" filterable clearable placeholder="请选择">
+						<el-option label="请选择" value=""></el-option>
+						<el-option v-for="category in categories" :label="category.name_cn" :value="category.id"></el-option>
+					</el-select>
+				</el-form-item>-->
+				
+				<el-form-item label="是否启用:">
+					<el-select v-model="formData.enabled" filterable clearable placeholder="请选择">
+						<el-option label="启用" value="1"></el-option>
+						<el-option label="禁用" value="2"></el-option>
+					</el-select>
+				</el-form-item>
+				
+				<el-form-item>
+					<button type="button" class="btn" @click="onSubmit"><i class="fa fa-search"></i>&nbsp;查询</button>
+				</el-form-item>
+			</el-form>
+		</div>
+
+		<div class="operation-module">
+			<button type="button" class="o-btn" @click.stop="collection_set_add = true"><i class="fa fa-plus"></i>新增</button>
+
+			<el-dialog title="新增" v-model="collection_set_add" size="tiny" align="left"
+					   class="reviseForm" top="5%">
+				<el-form :model="addCollectionSetForm" :rules="reviseRules" ref="addCollectionSetForm" label-width="100px"
+						 class="demo-ruleForm">
+					
+					<el-form-item label="类别" prop="category_name">
+						<el-autocomplete
+								class="inline-input"
+								v-model="addCollectionSetForm.category_name"
+								:fetch-suggestions="querySearchAsync"
+								placeholder="请输入类别(必选)"
+								:trigger-on-focus="false"
+								@select="handleAddSelect"
+						></el-autocomplete>
+					</el-form-item>
+					<el-form-item label="采集链接" prop="collection_url">
+						<el-input v-model="addCollectionSetForm.collection_url"></el-input>
+					</el-form-item>
+					<el-form-item label="采集页数" prop="collection_page">
+						<el-input v-model="addCollectionSetForm.collection_page" placeholder="如果不填，就默认为 30"></el-input>
+					</el-form-item>
+				
+					<el-form-item label="是否启用" prop="enabled">
+						<el-select v-model="addCollectionSetForm.enabled" filterable placeholder="请选择">
+							<el-option label="启用" value="1"></el-option>
+							<el-option label="禁用" value="2"></el-option>
+						</el-select>
+						
+					</el-form-item>
+				</el-form>
+				<span slot="footer" class="dialog-footer">
+                    <el-button @click.stop="resetForm('addCollectionSetForm')">取 消</el-button>
+                    <el-button type="primary" @click="addForm('addCollectionSetForm',addCollectionSetForm)">确 定</el-button>
+                </span>
+			</el-dialog>
+		</div>
+		
+		<div class="table-module">
+			<template>
+				<el-table :data="tableData" :highlight-current-row="true" style="width: 100%">
+					<el-table-column type="index" label="序号" width="50" align="center"></el-table-column>
+					<el-table-column prop="id" label="ID" width="100" align="center"></el-table-column>
+					<el-table-column prop="category_name" label="类别" width="300" align="center"></el-table-column>
+					<el-table-column prop="collection_url" label="采集链接"  align="center"></el-table-column>
+					<el-table-column prop="collection_page" label="采集页数" width="150" align="center"></el-table-column>
+					
+					<el-table-column label="是否启用" width="150" align="center">
+						<template scope="scope">
+							<span v-if="scope.row.enabled==1" style="color: #67C23A">启用</span>
+							<span v-if="scope.row.enabled==2" style="color: #F56C6C">禁用</span>
+						</template>
+					</el-table-column>
+					
+					
+					<el-table-column label="操作" width="150" align="center">
+						<template scope="scope">
+							<div class="">
+								<a href="#" class="alink" @click="handleEdit(scope.$index, scope.row)" >修改</a>
+								<a href="#" class="alink" @click="doDelete(scope.$index,scope.row)" v-if="scope.row.enabled==2" >删除</a>
+
+							</div>
+						</template>
+					</el-table-column>
+				</el-table>
+			</template>
+
+			<el-dialog title="修改" v-model="reviseVisible" size="tiny" align="left" class="reviseForm" top="5%">
+				<el-form :model="reviseForm" :rules="reviseRules" ref="reviseForm" label-width="100px"
+					class="demo-ruleForm">
+					
+					<!--<div class="dialog-title">基本信息</div>-->
+					
+					<el-form-item label="类别" prop="category_name">
+						
+						<el-autocomplete
+								class="inline-input"
+								v-model="reviseForm.category_name"
+								:fetch-suggestions="querySearchAsync"
+								placeholder="请输入类别(必选)"
+								:trigger-on-focus="false"
+								@select="handleReviseSelect"
+						></el-autocomplete>
+					</el-form-item>
+					<el-form-item label="采集链接" prop="collection_url">
+						<el-input v-model="reviseForm.collection_url"></el-input>
+					</el-form-item>
+					<el-form-item label="采集页码" prop="collection_page">
+						<el-input v-model="reviseForm.collection_page"></el-input>
+					</el-form-item>
+
+					<el-form-item label="是否启用" prop="enabled">
+						<el-select v-model="reviseForm.enabled" filterable placeholder="请选择">
+							<el-option label="启用" value="1"></el-option>
+							<el-option label="禁用" value="2"></el-option>
+						</el-select>
+					</el-form-item>
+				</el-form>
+				
+				<span slot="footer" class="dialog-footer">
+					<el-button @click="reviseVisible = false">取 消</el-button>
+					<el-button type="primary" @click="submitForm('reviseForm',reviseForm)">确 定</el-button>
+				</span>
+			</el-dialog>
+			<el-pagination @size-change="handleSizeChange"
+						   @current-change="handleCurrentChange"
+						   :current-page="currentPage"
+						   :page-sizes="[10, 20, 30, 40]"
+						   :page-size="pageSize"
+						   layout="total, sizes, prev, pager, next, jumper"
+						   :total="total"
+						   class="pagination">
+			</el-pagination>
+		</div>
+		
+		
+		<el-dialog title="删除" :close-on-click-modal="false" v-model="deleteVisible" size="tiny" align="left"  class="ruleAddForm">
+			<span>确定要删除吗？</span>
+			<span slot="footer" class="dialog-footer">
+			<el-button @click="deleteVisible = false">取 消</el-button>
+			<el-button type="primary" @click="doDelete()">确 定</el-button>
+		</span>
+		</el-dialog>
+		
+	</div>
+</div>
+
+<script src="/assets/js/jquery-2.1.4.min.js"></script>
+<script src="/assets/js/vue-2.4.0.js"></script>
+<script src="/assets/js/vue-resource.js"></script>
+<script src="/assets/js/element-ui1413.js"></script>
+<script src="/assets/js/interceptors.js"></script>
+<script src="/assets/js/fun.js"></script>
+<script>
+
+	var Main = {
+		mixins: [myMixin],
+		data: function () {
+			return {
+				formData: {
+					category_name:[],
+					enabled:'',
+					currentPage: myMixin.data().currentPage,
+					pageSize: myMixin.data().pageSize,
+				},
+				
+                restaurants: [],
+				reviseVisible: false,
+				deleteVisible: false,
+				selecteddRow: false,
+				collection_set_add: false,
+				user_delete: false,
+				index: null,
+				tableData: [],
+                categories:[],
+                cateData:[],
+				s_id:'',
+                s_id_2:'',
+                addCollectionSetForm: {
+					category_name: '',
+					collection_url: '',
+					collection_page: '',
+					enabled: ''
+				},
+				reviseForm: {
+                    category_name: '',
+                    collection_url: '',
+                    collection_page: '',
+                    enabled: ''
+				},
+				dropdown: {
+				    role: [],
+					department: [],
+					department_edit: [],
+					department_all: [],
+				},
+				company: [],
+				user_group: [],
+				is_admin: false,
+				reviseRules: {
+					
+					collection_url: [
+						{required: true, message: '请输入采集链接', trigger: 'blur'}
+						
+					],
+					enabled: [
+						{required: true, message: '请设置是否启用', trigger: 'blur'}
+						
+					]
+			
+				}
+			}
+		},
+ 
+		methods: {
+            querySearchAsync(queryString, callback) {
+                var list = [{}];
+                //调用的后台接口
+                let url = "/collection_set/get_select_cat?queryData=" + queryString;
+                //从后台获取到对象数组
+                Vue.http.get( url ).then((response)=>{
+                    console.log(response);
+                    var data= response.body.data;
+                    //在这里为这个数组中每一个对象加一个value字段, 因为autocomplete只识别value字段并在下拉列中显示
+                    for(let i of data){
+                        i.value = i.name_cn +'----'+ i.cat_4;  //将想要展示的数据作为value
+                    }
+                    list = data;
+                    callback(list);
+                }).catch((error)=>{
+                    console.log(error);
+                });
+            },
+            handleFormSelect(item) {
+                console.log(item,'form');
+                this.formData.category_name=item.name_cn;
+                
+            },
+            handleAddSelect(item) {
+                console.log(item,'add');
+                this.addCollectionSetForm.category_name=item.name_cn;
+                var select_id = item.id;
+                var that =this;
+                that.s_id =select_id;
+				
+
+            },
+            handleReviseSelect(item) {
+                console.log(item,'revise');
+                this.reviseForm.category_name=item.name_cn;
+                var select_id_2 = item.id;
+                var that =this;
+                that.s_id_2 =select_id_2;
+                console.log(that.s_id_2,'1');
+
+            },
+			
+            /*querySearch(queryString, cb) {
+                var restaurants = this.restaurants;
+                var results = queryString ? restaurants.filter(this.createFilter(queryString)) : restaurants;
+                // 调用 callback 返回建议列表的数据
+                cb(results);
+            },
+            createFilter(queryString) {
+                return (restaurant) => {
+                    return (restaurant.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0);
+					
+                };
+            },
+            loadAll() {
+				
+                return this.cateData;
+            
+            },
+           */
+        
+            
+			
+			//分页
+			handleSizeChange: function (val) {
+				this.pageSize = val;
+				this.formData.currentPage = this.currentPage;
+				this.formData.pageSize = val;
+				this.getList(this.formData);
+			},
+			handleCurrentChange: function (val) {
+				this.currentPage = val;
+				this.formData.currentPage = val;
+				this.formData.pageSize = this.pageSize;
+				this.getList(this.formData);
+			},
+
+			//重置
+			resetForm: function (formName) {
+				this.collection_set_add = false
+				this.$refs[formName].resetFields();
+			},
+			//新增
+			addForm: function (formName, data) {
+				var that = this;
+				data['s_id']= that.s_id;
+
+				console.log(data);
+				this.$refs[formName].validate(function (valid) {
+					if (valid) {
+						Vue.http.post('/collection_set/add', data, {emulateJSON: true}).then(function (response) {
+							if (response.body.error == 0) {
+								location.reload();
+							} else {
+								that.error(response.body.msg);
+							}
+						}, function (response) {
+							that.error(response.body.msg);
+						});
+					} else {
+						that.error('表单填写有误');
+						return false;
+					}
+				});
+			},
+			//修改
+			handleEdit: function (index, row) {
+
+				this.reviseVisible = true;
+				this.index = index;
+				
+
+				
+
+				for (var key in row) {
+					this.reviseForm[key] = row[key];
+					
+					
+                    if(key == 'department_ids' && key == '') {
+                        this.reviseForm.department_ids = [];
+                    }
+
+					//patch
+                    Array.prototype.contains = function (obj) {
+                        var i = this.length;
+                        while (i--) {
+                            if (this[i] == obj) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+                    
+                    
+                    if(key == 'department_ids') {
+                        this.dropdown.department_edit = [];
+					    var department_edit = [];
+					    var dep_all = this.dropdown.department_all;
+					    for(var i in dep_all) {
+					        var depart_ids = (row[key] + '').split(',');
+							var bool = depart_ids.contains(dep_all[i].id);
+							if(bool) {
+                                department_edit.push(dep_all[i]);
+							}
+						}
+					    this.dropdown.department_edit = department_edit;
+					    //batch 如果是超级管理员，那么显示全部的部门
+						if(this.is_admin == true) {
+						    this.dropdown.department_edit = dep_all;
+						}
+					}
+				}
+				
+
+
+			},
+			
+			submitForm: function (formName, data) {
+				var that = this;
+                data['s_id_2'] = that.s_id_2;
+                console.log(that.s_id_2,'2');
+				this.$refs[formName].validate(function (valid) {
+					if (valid) {
+						Vue.http.post('/collection_set/edit', data, {emulateJSON: true}).then(function (response) {
+							
+							
+							if (response.body.error == 0) {
+								for (var key in data) {
+									that.tableData[that.index][key] = data[key];
+								}
+								that.reviseVisible = false;
+								that.success('修改成功');
+							} else {
+								that.error(response.body.msg);
+							}
+						}, function (response) {
+							that.error(response.body.msg);
+						});
+					} else {
+						that.error('表单填写有误');
+						return false;
+					}
+				});
+			},
+			
+			doDelete: function (val, row) {
+				if(row) {
+					this.deleteVisible = true;
+					this.selecteddRow = row;
+					return
+				}
+				
+				var that = this;
+				var id = this.selecteddRow.id;
+				
+				Vue.http.get('/collection_set/delete?id=' + id).then(function (response) {
+					if (response.body.error == 0) {
+						that.success('删除成功');
+						that.deleteVisible = false;
+						that.getList(that.formData);
+						
+					} else {
+						that.error(response.body.msg);
+					}
+				}, function (response) {
+					that.error(response.body.msg);
+				});
+			},
+			
+			//查询
+			onSubmit: function () {
+
+                var that = this;
+				this.currentPage = 1
+                this.formData.currentPage = this.currentPage;
+                this.formData.pageSize = this.pageSize;
+                Vue.http.post('/collection_set/index', this.formData, {emulateJSON: true}).then(function (response) {
+                    that.tableData = response.body.data;
+					that.total = response.body.total;
+					
+                }, function (response) {
+                    console.log("查询失败")
+                });
+			},
+			
+			getList: function(option) {
+
+                var that = this;
+                Vue.http.post('/collection_set/index', option, {emulateJSON: true}).then(function (response) {
+
+					that.tableData = response.body.data;
+					that.total = response.body.total;
+                   /* that.restaurants = that.loadAll();*/
+                   
+                }, function (response) {
+                    console.log("查询失败")
+                });
+                
+			},
+			
+	
+		},
+		created: function () {
+		    var that = this;
+		    this.getList(this.formData);
+		}
+	};
+	var Ctor = Vue.extend(Main);
+	Vue.http.options.emulateJSON = true;
+	new Ctor().$mount('#app');
+</script>
+</body>
+</html>

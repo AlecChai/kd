@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>产品刊登</title>
+	<link rel="stylesheet" type="text/css" href="/assets/css/reset.css">
+	<link href="/assets/css/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="/assets/css/element-ui1413.css">
+	<link rel="stylesheet" type="text/css" href="/assets/css/components.css">
+	<style type="text/css">
+		.state1{color:#1783e7}
+		.state2{color:#33cc00}
+		.state3{color:green}
+		.state4{color:red}
+		textarea{font-family:tahoma;}
+		
+		#stable{width:96%;margin:0px 20px;}
+		#stable th{background:#eee;width:90%;padding:7px 15px;border:1px solid #eee;}
+		#stable td{padding:9px 15px;border:1px solid #eee;text-align:left;line-height:1.5}
+		td.td{width:20%;color:#333;}
+		/*#desc{max-height:180px;min-height:100px;overflow-y:scroll;overflow-x:hidden;}*/
+		
+		.img2{display:inline-block;width:80px;margin:0 10px;}
+		
+	</style>
+
+</head>
+<body>
+<div id="app" v-loading="fullscreenLoading" element-loading-text="处理中...">
+	<div class="main-content">
+
+		<div class="search-module">
+			<el-form
+					:inline="true"
+					:model="formData"
+					label-position="right"
+					label-width="75px"
+					class="demo-form-inline">
+				<el-form-item label="ID:">
+					<el-input v-model="formData.id" clearable placeholder="产品ID"></el-input>
+				</el-form-item>
+				
+				<el-form-item label="SKU:">
+					<el-input v-model="formData.sku" clearable></el-input>
+				</el-form-item>
+				
+				<el-form-item label="标题:">
+					<el-input v-model="formData.title" clearable></el-input>
+				</el-form-item>
+				
+				<el-form-item label="刊登人:">
+					<el-select v-model="formData.kd_man" filterable clearable placeholder="请选择">
+						<el-option v-for="(item,key) in users" :key="key" :label="item" :value="key"></el-option>
+					</el-select>
+				</el-form-item>
+		
+			
+				<el-form-item label="类别:">
+					<el-select v-model="formData.cat_id" filterable clearable placeholder="请选择">
+						<el-option v-for="(item,key) in cates" :key="key" :label="item" :value="key"></el-option>
+					</el-select>
+				</el-form-item>
+	
+				<el-form-item label="状态:">
+					<el-select v-model="formData.status" filterable clearable placeholder="请选择">
+						<el-option v-for="(item,key) in kdstatus" :key="key" :label="item" :value="key"></el-option>
+					</el-select>
+				</el-form-item>
+				
+				<el-form-item label="生成时间:">
+					<el-date-picker v-model="formData.dates" type="daterange" placeholder="选择日期范围">
+					</el-date-picker>
+				</el-form-item>
+
+				<el-form-item>
+					<button type="button" class="btn" @click="onSubmit"><i class="fa fa-search"></i>&nbsp;查询</button>
+				</el-form-item>
+			</el-form>
+		</div>
+
+		<div class="operation-module">
+			<button type="button" class="o-btn" @click="exportProducts" ><i class="fa fa-cloud-download"></i>导出产品</button>
+			<button type="button" class="o-btn" @click="importorder"><i class="fa fa-plus"></i>导入报告</button>
+			<button type="button" class="o-btn" @click="exportPrices"><i class="fa fa-cloud-download"></i>导出价格</button>
+			
+			<el-dialog title="导入报告" :close-on-click-modal="true" v-model="importVisible" size="tiny">
+				<div class="detail-info">
+					<el-row>
+						
+						<el-col :span="24">
+							<div class="text-box" style="margin-top: 10px">
+								<el-upload class="upload-demo"
+										   action="/kdproduct/import/"
+										   :on-success="successe"
+										   :file-list="fileList">
+									<el-button size="medium" type="primary">点击上传
+									</el-button>
+									<div slot="tip" class="el-upload__tip">
+										只能上传excel文件，且不超过50M
+									</div>
+								</el-upload>
+							</div>
+						</el-col>
+					</el-row>
+				</div>
+				<span slot="footer" class="dialog-footer">
+                <el-button @click="importVisible = false">关闭</el-button>
+            </span>
+			</el-dialog>
+			
+			
+		</div>
+
+		<div class="table-module">
+			<template>
+				<el-table :data="tableData" :highlight-current-row="true" @selection-change="handleSelectionChange" border style="width: 100%">
+					<el-table-column type="selection" width="55" align="center">
+					</el-table-column>
+					
+					<el-table-column type="index" label="序号" width="50" align="center"></el-table-column>
+					
+					<!--<el-table-column prop="id" label="ID" width="100" align="center"></el-table-column>-->
+					
+					<el-table-column label="图片" width="60" align="center">
+						<template scope="scope">
+							<a target="_blank" class="alink" :href="scope.row.cd_url"><img :src="scope.row.simg"></a>
+						</template>
+					</el-table-column>
+					
+					<el-table-column prop="store" label="SKU" width="160" align="center">
+						<template scope="scope">
+							<p title="子体sku" v-if="scope.row.zt_sku">{{scope.row.zt_sku}}</p>
+							<p title="母体sku" v-if="scope.row.mt_sku">{{scope.row.mt_sku}}</p>
+						</template>
+					</el-table-column>
+					
+					<el-table-column prop="name_cn" label="类别" align="center">
+						<template scope="scope">
+							<p title="类别编号">{{scope.row.code}}</p>
+							<p title="类别">{{scope.row.name_cn}}</p>
+						</template>
+					</el-table-column>
+					
+					
+					<el-table-column prop="title" label="标题" width="300" align="left"></el-table-column>
+					<el-table-column prop="store_code" label="店铺" align="center"></el-table-column>
+					
+					<el-table-column prop="kd_price" label="价格/运费" align="center">
+						<template scope="scope">
+							<span>{{scope.row.price}} / {{scope.row.shipfee}}</span>
+						</template>
+					</el-table-column>
+					
+					<el-table-column prop="phone" label="属性" align="center">
+						<template scope="scope">
+							<p v-if="scope.row.color">{{scope.row.color}}</p>
+							<p v-if="scope.row.size">{{scope.row.size}}</p>
+						</template>
+						
+					</el-table-column>
+					
+					<el-table-column prop="realname" label="刊登人" align="center"></el-table-column>
+					<el-table-column prop="addtime" label="生成时间" align="center">
+						<template scope="scope">
+							<span>{{formatDate(scope.row.addtime)}}</span>
+						</template>
+					</el-table-column>
+					
+					<el-table-column prop="sjtime" label="上架时间" align="center" header-align="center">
+						<template scope="scope">
+							<span v-if="scope.row.sjtime!=0">{{formatDate(scope.row.sjtime)}}</span>
+						</template>
+					</el-table-column>
+					
+					<el-table-column prop="note" label="备注" align="left" header-align="center" width="160">
+						<template scope="scope">
+							<span>{{scope.row.note}}</span>
+						</template>
+					</el-table-column>
+					
+					<el-table-column label="状态" width="80" align="center">
+						<template scope="scope">
+							<span :title="scope.row.status" :class="'state' + scope.row.status">{{kdstatus[scope.row.status]}}</span>
+						</template>
+					</el-table-column>
+					<el-table-column label="操作" width="150" align="center">
+						<template scope="scope">
+							<div class="">
+								<a href="#" class="alink" @click="doEdit(scope.$index, scope.row)">修改</a>
+								<a href="#" class="alink" @click="doDetail(scope.$index,scope.row)">详情</a>
+								<a href="#" class="alink" @click="doDelete(scope.$index,scope.row)">删除</a>
+
+							</div>
+						</template>
+					</el-table-column>
+				</el-table>
+			</template>
+
+		
+			<el-pagination @size-change="handleSizeChange"
+						   @current-change="handleCurrentChange"
+						   :current-page="currentPage"
+						   :page-sizes="[10, 20, 30, 40]"
+						   :page-size="pageSize"
+						   layout="total, sizes, prev, pager, next, jumper"
+						   :total="total"
+						   class="pagination">
+			</el-pagination>
+		</div>
+		
+		
+		<el-dialog title="删除" :close-on-click-modal="false" v-model="deleteVisible" size="tiny" align="left">
+			<span>确定要删除吗？</span>
+			<span slot="footer" class="dialog-footer">
+			<el-button @click="deleteVisible = false">取 消</el-button>
+			<el-button type="primary" @click="doDelete()">确 定</el-button>
+		</span>
+		</el-dialog>
+		
+		
+		<el-dialog title="修改" v-model="editVisible" size="small" align="left" top="5%">
+			<el-form :model="editForm" :rules="editRules" ref="editForm" label-width="100px">
+				
+				<el-form-item label="短标题" prop="title1">
+					<el-input v-model="editForm.title1"></el-input>
+				</el-form-item>
+				
+				<el-form-item label="标题" prop="title">
+					<el-input v-model="editForm.title"></el-input>
+				</el-form-item>
+				
+				<el-row>
+				
+					<el-col :span="6">
+						<el-form-item label="价格" prop="price">
+							<el-input v-model="editForm.price"></el-input>
+						</el-form-item>
+					</el-col>
+					
+					
+					<el-col :span="6">
+						<el-form-item label="运费" prop="shipfee">
+							<el-input v-model="editForm.shipfee"></el-input>
+						</el-form-item>
+					</el-col>
+					
+					<el-col :span="9">
+					<el-form-item label="店铺" prop="store">
+						<template>
+							<el-select v-model="editForm.store" filterable placeholder="请选择">
+								<el-option v-for="(item,key) in stores" :key="key" :label="item" :value="key"></el-option>
+							</el-select>
+						</template>
+					</el-form-item>
+					</el-col>
+				
+				</el-row>
+				
+				<el-row>
+					
+					<el-col :span="6">
+						<el-form-item label="库存" prop="stock">
+							<el-input v-model="editForm.stock"></el-input>
+						</el-form-item>
+					</el-col>
+					
+					<el-col :span="6">
+						<el-form-item label="品牌" prop="brand">
+							<el-select v-model="editForm.brand" filterable placeholder="请选择">
+								<el-option v-for="(item,key) in brands" :key="key" :label="item" :value="key"></el-option>
+							</el-select>
+						</el-form-item>
+					</el-col>
+				
+				</el-row>
+				
+				<el-row>
+					
+					<!--<el-col :span="6">-->
+						<!--<el-form-item label="状态" prop="status">-->
+							<!--<el-select v-model="editForm.status" filterable placeholder="请选择">-->
+								<!--<el-option v-for="(item,key) in kdstatus" :key="key" :label="item" :value="key"></el-option>-->
+							<!--</el-select>-->
+						<!--</el-form-item>-->
+					<!--</el-col>-->
+					
+					<el-col :span="6">
+						<el-form-item label="性别" prop="sex">
+							<el-select v-model="editForm.sex" filterable placeholder="请选择">
+								<el-option v-for="(item,key) in sexes" :key="key" :label="item" :value="key"></el-option>
+							</el-select>
+						</el-form-item>
+					</el-col>
+					
+					
+					<el-col :span="6">
+						<el-form-item label="受众" prop="audiences">
+							<el-select v-model="editForm.audiences" filterable placeholder="请选择">
+								<el-option v-for="(item,key) in audiences" :key="key" :label="item" :value="key"></el-option>
+							</el-select>
+						</el-form-item>
+					</el-col>
+				
+				</el-row>
+				
+				<el-form-item label="备注" prop="maidian">
+					<el-input type="textarea" v-model="editForm.note" :rows="1"></el-input>
+				</el-form-item>
+				
+				<el-form-item label="卖点" prop="maidian">
+					<el-input type="textarea" v-model="editForm.maidian" :rows="2"></el-input>
+				</el-form-item>
+				
+				<el-form-item label="描述" prop="desc">
+					<el-input type="textarea" v-model="editForm.desc" :rows="4"></el-input>
+				</el-form-item>
+				
+			</el-form>
+			
+			<span slot="footer" class="dialog-footer">
+					<el-button @click="editVisible = false">取 消</el-button>
+					<el-button type="primary" @click="doEdit()">确 定</el-button>
+				</span>
+		</el-dialog>
+		
+		<el-dialog title="详情" v-model="detailVisible" size="small" align="left" top="1%">
+			
+			<table class="table table-bordered table-striped table-hover" id="stable">
+				
+				<tbody>
+				
+				<tr><td class="td">id</td><td class="td1" colspan=3>
+					<a target="_blank" class="alink" :href="selRow.cd_url">{{selRow.id}}</a>
+				</td>
+				</tr>
+				
+				<tr><td class="td">状态</td><td class="td1" colspan=3 :class="'state' + selRow.status">{{kdstatus[selRow.status]}}</td>	</tr>
+				
+				<tr><td class="td">图片</td><td class="td1" colspan=3>
+					<img class="img2" v-for="val in imgs_arr" :src="val">
+				</td>
+				</tr>
+				
+				<tr><td class="td">短标题</td><td class="td1" colspan=3>{{selRow.title1}}</td>	</tr>
+				<tr><td class="td">标题</td><td class="td1" colspan=3>{{selRow.title}}</td>	</tr>
+				
+				<tr>
+					<td class="td">SKU</td><td class="td1" colspan=3>
+						<span>子体SKU: {{selRow.zt_sku}}</span>
+						<span>母体SKU: {{selRow.mt_sku}}</span>
+					</td>
+				</tr>
+				
+				<tr>
+					<td class="td">ean</td>
+					<td class="td1" colspan=3>{{selRow.ean}}</td>
+				</tr>
+				
+				<tr><td class="td">类别</td><td class="td1" colspan=3>
+					<span>{{selRow.code}}</span>
+					<span>{{selRow.name_cn}}</span>
+				</td>	</tr>
+				
+				<tr><td class="td">价格 / 运费</td><td class="td1" colspan=3>{{selRow.price}} / {{selRow.shipfee}}</td>	</tr>
+				<tr><td class="td">颜色 / 尺寸</td><td class="td1" colspan=3>{{selRow.color}} / {{selRow.size}}</td>	</tr>
+				
+				<tr><td class="td">性别 / 受众</td>
+					<td class="td1" colspan=3>
+					<span >{{sexes[selRow.sex]}} / {{audiences[selRow.audiences]}}</span>
+				</td>	</tr>
+				
+				<tr>
+					<td class="td">店铺 / 品牌</td>
+					<td class="td1" colspan=3>{{selRow.store_code}} / {{brands[selRow.brand]}}</td>
+				</tr>
+				
+				<tr>
+					<td class="td">库存</td>
+					<td class="td1" colspan=3>{{selRow.stock}}</td>
+				</tr>
+				
+				<tr>
+					<td class="td">生成时间</td>
+					<td class="td1" colspan=3>{{formatDate(selRow.addtime)}}</td>
+				</tr>
+				<tr>
+					<td class="td">上架时间</td>
+					<td class="td1" colspan=3>{{selRow.sjtime>0 ? formatDate(selRow.sjtime) : ''}}</td>
+				</tr>
+				
+				<tr>
+					<td class="td">备注</td>
+					<td class="td1" colspan=3>{{selRow.note}}</td>
+				</tr>
+				<tr>
+					<td class="td">卖点</td>
+					<td class="td1" colspan=3>{{selRow.maidian}}</td>
+				</tr>
+				
+				<tr>
+					<td class="td">描述</td>
+					<td class="td1" colspan=3>
+						<div id="desc">{{selRow.desc}}</div>
+					</td>
+				</tr>
+				
+				
+				</tbody>
+			</table>
+		
+		</el-dialog>
+		
+	</div>
+</div>
+
+<script src="/assets/js/jquery-2.1.4.min.js"></script>
+<script src="/assets/js/vue-2.4.0.js"></script>
+<script src="/assets/js/vue-resource.js"></script>
+<script src="/assets/js/element-ui1413.js"></script>
+<script src="/assets/js/interceptors.js"></script>
+<script src="/assets/js/fun.js"></script>
+
+<script>
+	
+	
+
+	var Main = {
+		mixins: [myMixin],
+		data: function () {
+			return {
+				formData: {
+					id: '',
+					title: '',
+					title1: '',
+					cat_id: '',
+					kd_man: '',
+					status: '',
+					dates: '',
+					sku: '',
+					currentPage: myMixin.data().currentPage,
+					pageSize: myMixin.data().pageSize,
+				},
+				
+				editForm: {
+					id: '',
+					title: '',
+					title1: '',
+					price: '',
+					shipfee: '',
+					stock: 200,
+					store: '',
+					brand: '',
+					sex: 1,
+					audiences: 1,
+					store: '',
+					maidian: '',
+					status: '',
+					desc: '',
+					note: '',
+				},
+				
+				editRules: {
+					title: [
+						{required: true, message: '标题不能为空', trigger: 'blur'},
+					],
+					price: [
+						{required: true, message: '价格不能为空', trigger: 'blur'},
+					],
+					shipfee: [
+						{required: true, message: '运费不能为空', trigger: 'blur'},
+					],
+				
+					store: [
+						{required: true, message: '请选择店铺', trigger: 'change'},
+					],
+				
+				},
+				
+				sexes: {1:'男',2:'女'},
+				audiences: {1:'成人',2:'小孩',3:'婴儿'},
+				
+				deleteVisible: false,
+				detailVisible: false,
+				selRow: {imgs:''},
+				tableData: [],
+				stores: {},
+				users: {},
+				kdstatus: {},
+				cates: {},
+				brands: {},
+				importVisible: false,
+				editVisible: false,
+				fileList: [],
+				fullscreenLoading: false
+			
+			}
+		},
+		
+		computed:{
+			imgs_arr:function(){
+				if (!this.selRow.imgs) this.selRow.imgs=''
+				return this.selRow.imgs.split("\n");
+			}
+		},
+		
+		methods: {
+			
+			//分页
+			handleSizeChange: function (val) {
+				this.pageSize = val;
+				this.formData.currentPage = this.currentPage;
+				this.formData.pageSize = val;
+				this.getList(this.formData);
+			},
+			handleCurrentChange: function (val) {
+				this.currentPage = val;
+				this.formData.currentPage = val;
+				this.formData.pageSize = this.pageSize;
+				this.getList(this.formData);
+			},
+			
+			successe: function (response, file, fileList) {
+				var that = this;
+				that.open5(response.msg, 6);
+				that.getList(that.formData);
+				this.importVisible = false;
+				this.fileList = [];
+				
+			},
+			handleSelectionChange: function(val) {
+				this.multipleSelection = val;
+			},
+			
+			importorder: function () {
+				this.importVisible = true;
+				this.fileList = [];
+			},
+		
+			exportProducts: function() {
+				
+				var params = '';
+				
+				var ids =[]
+				for(var i in this.multipleSelection) {
+					ids.push(this.multipleSelection[i].id);
+				}
+				
+				if(ids.length) {
+					params = '&ids='+ ids.join(",")
+				}
+				
+				for(var j in this.formData) {
+					if(j == 'dates' && this.formData[j]) {
+						
+						if(this.formData.dates.length >0 && typeof this.formData.dates[0] !== 'string' && this.formData.dates[0] !== null ){
+							this.formData.dates[0] = fordate(this.formData.dates[0]);
+							this.formData.dates[1] = fordate(this.formData.dates[1]);
+						}
+						params += '&' + j + '=' + JSON.stringify(this.formData[j]);
+						
+					} else if(this.formData[j]) {
+						params += '&' + j + '=' + this.formData[j];
+					}
+				}
+				
+				var url = "/kdproduct/export_products?"+params;
+				window.location.href = url;
+				
+			},
+			
+			exportPrices: function() {
+				
+				var params = '';
+				
+				var ids =[]
+				for(var i in this.multipleSelection) {
+					ids.push(this.multipleSelection[i].id);
+				}
+				
+				if(ids.length) {
+					params = '&ids='+ ids.join(",")
+				}
+				
+				for(var j in this.formData) {
+					if(j == 'dates' && this.formData[j]) {
+						
+						if(this.formData.dates.length >0 && typeof this.formData.dates[0] !== 'string' && this.formData.dates[0] !== null ){
+							this.formData.dates[0] = fordate(this.formData.dates[0]);
+							this.formData.dates[1] = fordate(this.formData.dates[1]);
+						}
+						params += '&' + j + '=' + JSON.stringify(this.formData[j]);
+						
+					} else if(this.formData[j]) {
+						params += '&' + j + '=' + this.formData[j];
+					}
+				}
+			
+				var url = "/kdproduct/export_prices?"+params;
+				window.location.href = url;
+			},
+			
+			doDelete: function (val, row) {
+				if(row) {
+					this.deleteVisible = true;
+					this.selRow = row;
+					return
+				}
+				
+				var that = this;
+				var id = this.selRow.id;
+				
+				Vue.http.get('/kdproduct/delete?id=' + id).then(function (response) {
+					if (response.body.error == 0) {
+						that.success('删除成功');
+						that.deleteVisible = false;
+						that.getList(that.formData);
+						
+					} else {
+						that.error(response.body.msg);
+					}
+				}, function (response) {
+					that.error(response.body.msg);
+				});
+			},
+			
+			
+			doEdit: function (val, row) {
+				if(row) {
+					this.editVisible = true;
+					for (var key in this.editForm) {
+						this.editForm[key] = row[key];
+					}
+					return
+				}
+			
+				var that = this;
+				
+				this.$refs['editForm'].validate(function (valid) {
+					if (valid) {
+						Vue.http.post('/kdproduct/edit', that.editForm, {emulateJSON: true}).then(function (response) {
+							if (response.body.error == 0) {
+								that.success(response.body.msg);
+								that.editVisible = false;
+								that.getList(that.formData);
+								
+							} else {
+								that.error(response.body.msg);
+							}
+							
+						}, function (response) {
+							that.error(response.body.msg);
+						});
+					}
+					
+				});
+			
+			},
+			
+			doDetail: function (val, row) {
+				this.selRow = row;
+				this.detailVisible = true;
+			},
+			
+			//查询
+			onSubmit: function () {
+
+				this.currentPage = 1
+                this.formData.currentPage = this.currentPage;
+                this.formData.pageSize = this.pageSize;
+				
+				if(this.formData.dates.length >0 && typeof this.formData.dates[0] !== 'string' && this.formData.dates[0] !== null ){
+					this.formData.dates[0] = fordate(this.formData.dates[0]);
+					this.formData.dates[1] = fordate(this.formData.dates[1]);
+				}
+				
+				this.getList(this.formData)
+    
+			},
+			
+			getList: function(option) {
+				this.fullscreenLoading = true;
+                var that = this;
+                Vue.http.post('/kdproduct/index', option, {emulateJSON: true}).then(function (response) {
+
+					that.tableData = response.body.data;
+					that.total = response.body.total;
+					that.cates = response.body.cates;
+					that.users = response.body.users;
+					that.kdstatus = response.body.kdstatus;
+					that.stores = response.body.stores;
+					that.brands = response.body.brands;
+					that.sexes = response.body.sexes;
+	
+				}, function (response) {
+					that.error("查询失败");
+                });
+				
+				that.fullscreenLoading = false;
+			},
+	
+		},
+		created: function () {
+		    var that = this;
+		    this.getList(this.formData);
+		}
+	};
+	var Ctor = Vue.extend(Main);
+	Vue.http.options.emulateJSON = true;
+	new Ctor().$mount('#app');
+</script>
+</body>
+</html>

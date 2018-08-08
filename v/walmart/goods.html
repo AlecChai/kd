@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>沃尔玛--产品管理</title>
+  <link rel="stylesheet" type="text/css" href="/assets/css/reset.css">
+  <link href="/assets/css/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/element-ui.css">
+  <link rel="stylesheet" type="text/css" href="/assets/css/components.css">
+
+</head>
+<body>
+<div id="app">
+  <div class="main-content">
+
+    <div class="search-module">
+      <el-form
+          :inline="true"
+          :model="formData"
+          label-position="right"
+          label-width="75px"
+          class="demo-form-inline">
+
+        <el-form-item label="关键字:">
+          <el-input v-model="formData.keyword" placeholder="请输入标题/产品ID/品牌"></el-input>
+        </el-form-item>
+      
+        <el-form-item label="类别:">
+          <el-select v-model="formData.type" filterable clearable placeholder="请选择">
+            <el-option label="请选择" value="-1"></el-option>
+            <el-option label="中文" value="0"></el-option>
+            <el-option label="英文" value="1"></el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="销售人员:">
+          <el-select v-model="formData.sale_id" filterable clearable placeholder="请选择">
+            <el-option label="请选择" value="-1"></el-option>
+            <el-option :label="item.username" :value="item.id" v-for="(item, index) in saleList"></el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="开发人员:">
+          <el-select v-model="formData.developer_id" filterable clearable placeholder="请选择">
+            <el-option label="请选择" value="-1"></el-option>
+            <el-option :label="item.username" :value="item.id" v-for="(item, index) in developerList"></el-option>
+          </el-select>
+        </el-form-item>
+
+       <el-form-item label="是否开发:">
+          <el-select v-model="formData.sale_status" filterable clearable placeholder="请选择">
+            <el-option label="请选择" value="-1"></el-option>
+            <el-option label="否" value="0"></el-option>
+            <el-option label="是" value="1"></el-option>
+          </el-select>
+        </el-form-item>
+
+         <el-form-item label="开发状态:">
+          <el-select v-model="formData.developer_status" filterable clearable placeholder="请选择">
+            <el-option label="请选择" value="-1"></el-option>
+            <el-option label="待开发" value="0"></el-option>
+            <el-option label="未完成" value="1"></el-option>
+            <el-option label="已完成" value="2"></el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="自营:">
+          <el-select v-model="formData.is_owner" filterable clearable placeholder="请选择">
+            <el-option label="请选择" value="-1"></el-option>
+            <el-option label="否" value="0"></el-option>
+            <el-option label="是" value="1"></el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item>
+          <button type="button" class="btn" @click="onSubmit"><i class="fa fa-search"></i>&nbsp;查询</button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <div class="table-module">
+      <template>
+        <el-table :data="tableData" :highlight-current-row="true" style="width: 100%">
+          <el-table-column prop="img" label="图片" align="center" width="60">
+            <template scope="scope">
+              <a v-bind:href="scope.row.href" target="_bank"><img v-bind:src="scope.row.img" /></a>
+            </template>
+          </el-table-column>
+          <el-table-column label="标题" align="left" width="360">
+            <template scope="scope">
+              标题：{{scope.row.name}}<br/>
+              产品ID：{{scope.row.goods_code}}<br/>
+              品牌：{{scope.row.brand_name}}
+            </template>
+          </el-table-column>
+          <el-table-column label="类别" width="50" align="center">
+            <template scope="scope">
+              <span v-if="scope.row.type==0">中文</span>
+              <span v-if="scope.row.type==1">英文</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="售价&运费" width="120" align="center">
+            <template scope="scope">
+              售价：{{scope.row.price}}<br/>
+              <span>运费：{{scope.row.shipping_fee}}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="评价" width="150" align="center">
+            <template scope="scope">
+            评价数量：{{scope.row.evaluation_num}}<br/> 
+            评价得分：{{scope.row.evaluation_score}}<br/>
+            2018年评价数量：{{scope.row.evaluation_item}}
+            </template>
+          </el-table-column>
+          <el-table-column label="卖家数量" align="center" width="150">
+           <template scope="scope">
+            卖家数量：{{scope.row.seller_num}}<br/> 
+            卖家最低售价：{{scope.row.seller_min_priece}}
+            </template>
+          </el-table-column>
+          <el-table-column prop="sale_description" label="销售标识" align="center"></el-table-column>
+          <el-table-column prop="attribute_description" label="属性" align="center"></el-table-column>
+          <el-table-column label="沃尔马自营" align="center">
+            <template scope="scope">
+              <span v-if="scope.row.is_owner==0">否</span>
+              <span v-if="scope.row.is_owner==1">是</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="采集时间" align="center" prop="last_time"></el-table-column>
+          <el-table-column label="是否开发" align="left">
+            <template scope="scope">
+            <span v-if="scope.row.goods_sale.goods_id">
+            状态：{{scope.row.goods_sale.goods_id?(scope.row.goods_sale.status==0?'否':'是'):''}}<br/> 
+            姓名：{{scope.row.goods_sale.author_name}}<br/> 
+            时间：{{scope.row.goods_sale.date}}
+            </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="开发状态" align="left">
+            <template scope="scope">
+            <span v-if="scope.row.goods_developer.goods_id">
+            状态：{{scope.row.goods_developer.goods_id?(scope.row.goods_developer.status==0?'待开发':(scope.row.goods_developer.status==1?'未完成':'已完成')):''}}<br/> 
+            姓名：{{scope.row.goods_developer.author_name}}<br/> 
+            时间：{{scope.row.goods_developer.date}}
+            </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="产品SKU" align="left" >
+            <template scope="scope">
+            {{scope.row.goods_developer.sku}}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" align="center">
+            <template scope="scope">
+              <div class="">
+                <a href="#" v-if="scope.row.goods_sale.status!=1" class="alink" @click="sale(scope.$index, scope.row)">标记</a>
+                <a v-if="scope.row.goods_sale.goods_id && scope.row.goods_sale.status==1>0" href="#" class="alink" @click="developer(scope.$index,scope.row)">开发</a>
+                <a href="#" class="alink" @click="logList(scope.$index,scope.row)">日志</a>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
+
+
+
+      <el-dialog title="标记" v-model="saleVisible" size="tiny" align="left" class="saleForm" top="5%">
+        <el-form :model="saleForm" :rules="saleRules" ref="saleForm" label-width="100px"
+             class="demo-ruleForm">
+          
+          <!--<div class="dialog-title">基本信息</div>-->
+          
+          <el-form-item label="是否开发" prop="goods_sale.status" :rules="saleRules.goods_sale.status">
+            <el-select v-model="saleForm.goods_sale.status" filterable placeholder="请选择">
+              <el-option label="否" value="0"></el-option>
+              <el-option label="是" value="1"></el-option>
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="备注" prop="goods_sale.remark" :rules="saleRules.goods_sale.remark">
+            <el-input v-model="saleForm.goods_sale.remark" placeholder="请填写备注"></el-input>
+          </el-form-item>
+
+        </el-form>
+        
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="resetSaleForm('saleForm')">取 消</el-button>
+          <el-button type="primary" @click="saleSubmitForm('saleForm',saleForm)">确 定</el-button>
+        </span>
+      </el-dialog>
+
+
+
+      <el-dialog title="开发" v-model="developerVisible" size="tiny" align="left" class="developerForm" top="5%">
+        <el-form :model="developerForm" :rules="developerRules" ref="developerForm" label-width="100px"
+             class="demo-ruleForm">
+          
+          <!--<div class="dialog-title">基本信息</div>-->
+          
+          <el-form-item label="开发状态" prop="goods_developer.status" :rules="developerRules.goods_developer.status">
+            <el-select v-model="developerForm.goods_developer.status" filterable placeholder="请选择">
+              <el-option label="待开发" value="0"></el-option>
+              <el-option label="未完成" value="1"></el-option>
+              <el-option label="已完成" value="2"></el-option>
+            </el-select>
+          </el-form-item>
+
+
+          <el-form-item label="SKU" prop="goods_developer.sku" :rules="developerRules.goods_developer.sku" v-if="developerForm.goods_developer.status==2">
+            <el-input v-model="developerForm.goods_developer.sku" placeholder="请填写SKU，多个SKU以逗号来隔开"></el-input>
+          </el-form-item>
+
+          <el-form-item label="备注" prop="goods_developer.remark" :rules="developerRules.goods_developer.remark">
+            <el-input v-model="developerForm.goods_developer.remark" placeholder="请填写备注"></el-input>
+          </el-form-item>
+
+        </el-form>
+        
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="resetDeveloperForm('developerForm')">取 消</el-button>
+          <el-button type="primary" @click="developerSubmitForm('developerForm',developerForm)">确 定</el-button>
+        </span>
+      </el-dialog>
+
+
+      <el-dialog 
+        title="日志" 
+        v-model="logVisible" 
+        align="left" 
+        top="10%" 
+        width="50%">
+        <el-form label-width="200px" class="demo-ruleForm">
+          <div class="table-module">
+            <template>
+              <el-table :data="logListData.goods_log" :highlight-current-row="true" style="width: 100%">
+                <el-table-column type="index" label="序号" width="50" align="center"></el-table-column>
+                <el-table-column label="日志类型" align="center">
+                  <template scope="scope">
+                    <span v-if="scope.row.type==0">销售日志</span>
+                    <span v-if="scope.row.type==1">开发日志</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="remark" label="备注" align="center"></el-table-column>
+                <el-table-column prop="content" label="内容" align="center"></el-table-column>
+                <el-table-column prop="created_at" label="日期" align="center"></el-table-column>
+                <el-table-column prop="author_name" label="添加人" align="center"></el-table-column>
+                <el-table-column label="状态" align="center">
+                  <template scope="scope">
+                    <span v-if="scope.row.type==0">
+                        <span v-if="scope.row.status==0">是否开发：否</span>
+                        <span v-if="scope.row.status==1">是否开发：是</span>
+                    </span>
+                    <span v-if="scope.row.type==1">
+                        <span v-if="scope.row.status==0">开发状态：待开发</span>
+                        <span v-if="scope.row.status==1">是否开发：未完成</span>
+                        <span v-if="scope.row.status==2">是否开发：已完成</span>
+                    </span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </template>
+          </div>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="resetLog()">取 消</el-button>
+        </span>
+      </el-dialog>
+      
+      <el-pagination @size-change="handleSizeChange"
+               @current-change="handleCurrentChange"
+               :current-page="currentPage"
+               :page-sizes="[10, 20, 30, 40]"
+               :page-size="pageSize"
+               layout="total, sizes, prev, pager, next, jumper"
+               :total="total"
+               class="pagination">
+      </el-pagination>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/js/jquery-2.1.4.min.js"></script>
+<script src="/assets/js/vue.js"></script>
+<script src="/assets/js/vue-resource.js"></script>
+<script src="/assets/js/element-ui.js"></script>
+<script src="/assets/js/interceptors.js"></script>
+<script src="/assets/js/fun.js"></script>
+<script>
+
+  var Main = {
+    mixins: [myMixin],
+    data: function () {
+      return {
+        formData: {
+          keyword: '',
+          type: '',
+          sale_id: '',
+          developer_id: '',
+          sale_status: '',
+          developer_status: '',
+          is_owner: '',
+          currentPage: myMixin.data().currentPage,
+          pageSize: myMixin.data().pageSize,
+        },
+        saleVisible: false,
+        developerVisible: false,
+        logVisible: false,
+        index: null,
+        tableData: [],
+        logListData:[],
+        saleList:[],
+        developerList:[],
+        saleForm: {
+          goods_sale:{
+            id: '',
+            status: '',
+            remark: '',
+          }
+        },
+        saleRules: {
+          goods_sale:{
+            status: [
+              {required: true, message: '请选择状态类型', trigger: 'blur'},
+            ],
+            remark: [
+              {required: true, message: '请填写备注', trigger: 'blur'}
+            ],
+          }
+        },
+        developerForm: {
+          goods_developer:{
+            id: '',
+            status: '',
+            remark: '',
+            sku: '',
+          }
+        },
+        developerRules: {
+          goods_developer:{
+            status: [
+              {required: true, message: '请选择状态类型', trigger: 'blur'},
+            ],
+            remark: [
+              {required: true, message: '请填写备注', trigger: 'blur'}
+            ],
+            sku: [
+              {required: true, message: '请填写SKU', trigger: 'blur'}
+            ]
+          }
+        }
+      }
+    },
+ 
+    methods: {
+      
+      //分页
+      handleSizeChange: function (val) {
+        this.pageSize = val;
+        this.formData.currentPage = this.currentPage;
+        this.formData.pageSize = val;
+        this.getList(this.formData);
+      },
+      handleCurrentChange: function (val) {
+        this.currentPage = val;
+        this.formData.currentPage = val;
+        this.formData.pageSize = this.pageSize;
+        this.getList(this.formData);
+      },
+
+      //重置
+      resetSaleForm: function (formName) {
+        this.saleVisible = false
+        this.$refs[formName].resetFields();
+      },
+      resetDeveloperForm: function (formName) {
+        this.developerVisible = false
+        this.$refs[formName].resetFields();
+      },
+      resetLog: function (formName) {
+        this.logVisible = false
+        this.logListData = [];
+      },
+      sale: function (index, row) {
+
+        this.saleVisible = true;
+        this.index = index;
+        for (var key in row) {
+          this.saleForm[key] = row[key];
+        }
+      },
+      developer: function (index, row) {
+
+        this.developerVisible = true;
+        this.index = index;
+        for (var key in row) {
+          this.developerForm[key] = row[key];
+        }
+      },
+      logList: function (index, row) {
+        this.logVisible = true;
+        this.index = index;
+        for (var key in row) {
+          this.logListData[key] = row[key];
+        }
+      },
+      saleSubmitForm: function (formName, data) {
+        var that = this;
+        this.$refs[formName].validate(function (valid) {
+          if (valid) {
+            Vue.http.post('/walmart/editGoodsSale', data, {emulateJSON: true}).then(function (response) {
+              if (response.body.error == 0) {
+                var res = response.body.data;
+                for (var key in res) {
+                  that.tableData[that.index][key] = res[key];
+                }
+                that.saleVisible = false;
+                that.success(response.body.msg);
+              } else {
+                that.error(response.body.msg);
+              }
+            }, function (response) {
+              that.error(response.body.msg);
+            });
+          } else {
+            that.error('表单填写有误');
+            return false;
+          }
+        });
+      },
+      developerSubmitForm: function (formName, data) {
+        var that = this;
+        this.$refs[formName].validate(function (valid) {
+          if (valid) {
+            Vue.http.post('/walmart/editGoodsDeveloper', data, {emulateJSON: true}).then(function (response) {
+              if (response.body.error == 0) {
+                var res = response.body.data;
+                for (var key in res) {
+                  that.tableData[that.index][key] = res[key];
+                }
+                that.developerVisible = false;
+                that.success(response.body.msg);
+              } else {
+                that.error(response.body.msg);
+              }
+            }, function (response) {
+              that.error(response.body.msg);
+            });
+          } else {
+            that.error('表单填写有误');
+            return false;
+          }
+        });
+      },
+      //查询
+      onSubmit: function () {
+          var that = this;
+          this.currentPage = 1
+          this.formData.currentPage = this.currentPage;
+          this.formData.pageSize = this.pageSize;
+          Vue.http.post('/walmart/goods', this.formData, {emulateJSON: true}).then(function (response) {
+              that.tableData = response.body.data;
+              that.total = response.body.total;
+              // that.dropdown = response.body.data.dropdown;
+          }, function (response) {
+              console.log("查询失败")
+          });
+      },
+      getList: function(option) {
+          var that = this;
+          Vue.http.post('/walmart/goods', option, {emulateJSON: true}).then(function (response) {
+              that.tableData = response.body.data;
+              that.total = response.body.total;
+              // that.dropdown = response.body.data.dropdown;
+          }, function (response) {
+              console.log("查询失败")
+          });
+      },
+
+      getSaleList: function(option) {
+          var that = this;
+          Vue.http.post('/walmart/getSaleList', option, {emulateJSON: true}).then(function (response) {
+              that.saleList = response.body;
+              // that.dropdown = response.body.data.dropdown;
+          }, function (response) {
+              console.log("查询失败")
+          });
+      },
+
+      getDeveloperList: function(option) {
+          var that = this;
+          Vue.http.post('/walmart/getDeveloperList', option, {emulateJSON: true}).then(function (response) {
+              that.developerList = response.body;
+              // that.dropdown = response.body.data.dropdown;
+          }, function (response) {
+              console.log("查询失败")
+          });
+      },
+    },
+    created: function () {
+        var that = this;
+        this.getList(this.formData);
+        this.getSaleList();
+        this.getDeveloperList();
+    }
+  };
+  var Ctor = Vue.extend(Main);
+  Vue.http.options.emulateJSON = true;
+  new Ctor().$mount('#app');
+</script>
+</body>
+</html>

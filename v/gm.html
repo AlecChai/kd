@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CD刊登--跟卖</title>
+  <link rel="stylesheet" type="text/css" href="/assets/css/reset.css">
+  <link href="/assets/css/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/element-ui1413.css">
+  <link rel="stylesheet" type="text/css" href="/assets/css/components.css">
+
+</head>
+<body>
+<div id="app">
+  <div class="main-content">
+
+    <div class="search-module">
+      <el-form
+          :inline="true"
+          :model="formData"
+          label-position="right"
+          label-width="75px"
+          class="demo-form-inline">
+
+        <el-form-item label="关键字:">
+          <el-input v-model="formData.keyword" placeholder="请输入标题/产品SKU/渠道SKU"></el-input>
+        </el-form-item>
+
+        <el-form-item label="类别:">
+          <el-select v-model="formData.category_id" filterable clearable placeholder="请选择">
+            <el-option label="请选择" value="-1"></el-option>
+            <el-option :label="item.category_name_cn" :value="item.id" v-for="(item, index) in categoryList"></el-option>
+          </el-select>
+        </el-form-item>
+      
+        <el-form-item label="刊登人员:">
+          <el-select v-model="formData.created_man" filterable clearable placeholder="请选择">
+            <el-option label="请选择" value="-1"></el-option>
+            <el-option :label="item.username" :value="item.category_name_cn" v-for="(item, index) in saleList"></el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="生成时间:">
+          <el-date-picker v-model="formData.dates" type="daterange" placeholder="选择日期范围">
+          </el-date-picker>
+        </el-form-item>
+
+        <el-form-item>
+          <button type="button" class="btn" @click="onSubmit"><i class="fa fa-search"></i>&nbsp;查询</button>
+        </el-form-item>
+      </el-form>
+    </div>
+    <div class="operation-module"><button type="button" class="o-btn" @click="delAll(true)"><i class="fa fa-trash-o"></i>删除</button></div>
+    <div class="table-module">
+      <template>
+        <el-table :data="tableData" :highlight-current-row="true" style="width: 100%">
+          <el-table-column
+            type="selection"
+            width="55"
+            align="center"
+            @change="checkAll()">
+            <template scope="scope">
+              <el-checkbox v-model="scope.row.checked" v-if="scope.row.status!=1" @change="checkone()"></el-checkbox>
+            </template>
+          </el-table-column>
+          </el-table-column>
+          <el-table-column label="图片" align="center" width="60">
+            <template scope="scope">
+              <img v-bind:src="scope.row.product.simg" />
+            </template>
+          </el-table-column>
+          
+          <el-table-column label="标题" align="left" width="360">
+            <template scope="scope">
+              标题：{{scope.row.product.title}}<br/>
+              产品SKU：{{scope.row.product.sku}}<br/>
+              渠道SKU：{{scope.row.qd_sku}}<br/>
+              CD产品ID：<a target="_blank" class="alink" :href="'https://www.cdiscount.com/'+scope.row.product.cd_id+'.html'">{{scope.row.product.cd_id}}</a>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="是否母体" align="center">
+            <template scope="scope">
+              <span v-if="scope.row.product.muti==0">否</span>
+              <span v-if="scope.row.product.muti!=0">是</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="类别" align="left">
+            <template scope="scope">
+              类别名：{{scope.row.product.category?scope.row.product.category.category_name_cn:''}} <br/>
+              类别编号： {{scope.row.product.category?scope.row.product.category.category_code:''}}
+            </template>
+          </el-table-column>
+
+          <el-table-column label="价格" align="left">
+            <template scope="scope">
+              价格：{{scope.row.price}}<br/>
+              运费：{{scope.row.shipfee}}
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="user.username" label="跟卖人员" align="center"></el-table-column>
+          <el-table-column prop="create_time" label="生成时间" align="center"></el-table-column>
+          <el-table-column prop="time" label="状态" align="center">
+            <template scope="scope">
+              <span v-if="scope.row.status==0">待跟卖</span>
+              <span v-if="scope.row.status==1">跟卖成功</span>
+              <span v-if="scope.row.status==2">跟卖失败</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="time" label="跟卖时间" align="center"></el-table-column>
+          <el-table-column prop="store" label="店铺/品牌" align="left">
+            <template scope="scope">
+              店铺：{{scope.row.store?scope.row.store.store_name:''}} <br/>
+              品牌：{{scope.row.store && scope.row.store.brand?scope.row.store.brand[0].brand_name:''}}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="150" align="center">
+            <template scope="scope">
+              <div class="">
+                <a v-if="scope.row.status!=1" href="#" class="alink" @click="del(scope.$index,scope.row)">删除</a>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
+   
+      <el-pagination @size-change="handleSizeChange"
+               @current-change="handleCurrentChange"
+               :current-page="currentPage"
+               :page-sizes="[10, 20, 30, 40]"
+               :page-size="pageSize"
+               layout="total, sizes, prev, pager, next, jumper"
+               :total="total"
+               class="pagination">
+      </el-pagination>
+    </div>
+
+    <el-dialog title="删除" :close-on-click-modal="false" v-model="delVisible" size="tiny" align="left"  class="ruleAddForm">
+      <span>确定要删除吗？</span>
+      <span slot="footer" class="dialog-footer">
+      <el-button @click="delVisible = false">取 消</el-button>
+      <el-button type="primary" @click="del()">确 定</el-button>
+    </span>
+    </el-dialog>
+
+
+    <el-dialog title="批量删除" :close-on-click-modal="false" v-model="delAllVisible" size="tiny" align="left"  class="ruleAddForm">
+      <span>确定要批量删除吗？</span>
+      <span slot="footer" class="dialog-footer">
+      <el-button @click="delAllVisible = false">取 消</el-button>
+      <el-button type="primary" @click="delAll()">确 定</el-button>
+    </span>
+    </el-dialog>
+
+
+  </div>
+</div>
+
+<script src="/assets/js/jquery-2.1.4.min.js"></script>
+<script src="/assets/js/vue-2.4.0.js"></script>
+<script src="/assets/js/vue-resource.js"></script>
+<script src="/assets/js/element-ui1413.js"></script>
+<script src="/assets/js/interceptors.js"></script>
+<script src="/assets/js/fun.js"></script>
+<script>
+
+  Date.prototype.Format = function (fmt) { //author: meizz 
+    var o = {
+        "M+": this.getMonth() + 1, //月份 
+        "d+": this.getDate(), //日 
+        "h+": this.getHours(), //小时 
+        "m+": this.getMinutes(), //分 
+        "s+": this.getSeconds(), //秒 
+        "q+": Math.floor((this.getMonth() + 3) / 3), //季度 
+        "S": this.getMilliseconds() //毫秒 
+    };
+    if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+    for (var k in o)
+    if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+    return fmt;
+  }
+
+  var Main = {
+    mixins: [myMixin],
+    data: function () {
+      return {
+        formData: {
+          keyword: '',
+          category_id: '',
+          created_man: '',
+          dates: '',
+          currentPage: myMixin.data().currentPage,
+          pageSize: myMixin.data().pageSize,
+        },
+        index: null,
+        tableData: [],
+        saleList:[],
+        categoryList:[],
+        delVisible:false,
+        delRow:null,
+        delAllVisible:false,
+        delAllRow:null,
+        checked:false
+      }
+    },
+    watch: {
+        
+    },
+    methods: {
+      //分页
+      handleSizeChange: function (val) {
+        this.pageSize = val;
+        this.formData.currentPage = this.currentPage;
+        this.formData.pageSize = val;
+        this.getList(this.formData);
+      },
+      handleCurrentChange: function (val) {
+        this.currentPage = val;
+        this.formData.currentPage = val;
+        this.formData.pageSize = this.pageSize;
+        this.getList(this.formData);
+      },
+      checkAll:function(){
+          var data = this.tableData;
+          for(var k in data){
+              if(this.checked ==true && data[k]['status']!=1){
+                data[k]['checked'] = true;
+              }else{
+                data[k]['checked'] = false;
+              }
+          }
+      },
+      checkone:function(){
+            var data = this.tableData;
+            var checked_num = 0;
+            var count_num = 0;
+            for(var k in data){
+                if(data[k]['checked']==true){
+                  checked_num++;
+                }
+
+                if(data[k]['status']!=1){
+                  count_num++
+                }
+            }
+            console.log(checked_num,count_num)
+            if(checked_num==count_num) this.checked = true;
+            else this.checked = false;
+      },
+      del: function (val, row) {
+        if(row) {
+          this.delVisible = true;
+          this.delRow = row;
+          return
+        }
+        
+        var that = this;
+        var id = this.delRow.id;
+        
+        Vue.http.post('/gm/del',{id:id}).then(function (response) {
+          if (response.body.error == 0) {
+            that.success(response.body.msg);
+            that.delVisible = false;
+            that.getList(that.formData);
+          } else {
+            that.error(response.body.msg);
+          }
+        }, function (response) {
+          that.error(response.body.msg);
+        });
+      },
+      delAll: function (flag) {
+        if(flag) {
+          this.delAllVisible = true;
+          return
+        }
+        
+        var id = [];
+        var that = this;
+        var data = that.tableData;
+        for(var k in data){
+            if(data[k]['checked']==true){
+              id.push(data[k]['id']);
+            }
+        }
+        
+        Vue.http.post('/gm/delAll',{id:id}).then(function (response) {
+          if (response.body.error == 0) {
+            that.success(response.body.msg);
+            that.delAllVisible = false;
+            that.checked = false;
+            that.getList(that.formData);
+          } else {
+            that.error(response.body.msg);
+          }
+        }, function (response) {
+          that.error(response.body.msg);
+        });
+      },
+      //查询
+      onSubmit: function () {
+          var that = this;
+          this.currentPage = 1
+          this.formData.currentPage = this.currentPage;
+          this.formData.pageSize = this.pageSize;
+
+          if(this.formData.dates.length >0 && typeof this.formData.dates[0] !== 'string' && this.formData.dates[0] !== null ){
+            this.formData.dates[0] = fordate(this.formData.dates[0]);
+            this.formData.dates[1] = fordate(this.formData.dates[1]);
+          }
+
+          Vue.http.post('/gm/index', this.formData, {emulateJSON: true}).then(function (response) {
+              that.tableData = response.body.data;
+              that.total = response.body.total;
+              // that.dropdown = response.body.data.dropdown;
+          }, function (response) {
+              console.log("查询失败")
+          });
+      },
+      getList: function(option) {
+          var that = this;
+          Vue.http.post('/gm/index', option, {emulateJSON: true}).then(function (response) {
+              that.tableData = response.body.data;
+              that.total = response.body.total;
+              // that.dropdown = response.body.data.dropdown;
+          }, function (response) {
+              console.log("查询失败")
+          });
+      },
+
+      getSaleList: function(option) {
+          var that = this;
+          Vue.http.post('/Gm/getSaleList', option, {emulateJSON: true}).then(function (response) {
+              that.saleList = response.body;
+              // that.dropdown = response.body.data.dropdown;
+          }, function (response) {
+              console.log("查询失败")
+          });
+      },
+
+      getCategoryist: function(option) {
+          var that = this;
+          Vue.http.post('/Gm/getCategoryist', option, {emulateJSON: true}).then(function (response) {
+              that.categoryList = response.body;
+              // that.dropdown = response.body.data.dropdown;
+          }, function (response) {
+              console.log("查询失败")
+          });
+      },
+    },
+    created: function () {
+        var that = this;
+        this.getList(this.formData);
+        this.getSaleList();
+        this.getCategoryist();
+    }
+  };
+  var Ctor = Vue.extend(Main);
+  Vue.http.options.emulateJSON = true;
+  new Ctor().$mount('#app');
+</script>
+</body>
+</html>

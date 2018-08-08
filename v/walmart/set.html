@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>沃尔玛--设置链接</title>
+  <link rel="stylesheet" type="text/css" href="/assets/css/reset.css">
+  <link href="/assets/css/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/element-ui.css">
+  <link rel="stylesheet" type="text/css" href="/assets/css/components.css">
+
+</head>
+<body>
+<div id="app">
+  <div class="main-content">
+
+    <div class="search-module">
+      <el-form
+          :inline="true"
+          :model="formData"
+          label-position="right"
+          label-width="75px"
+          class="demo-form-inline">
+
+        <el-form-item label="添加人:">
+          <el-input v-model="formData.author_name" placeholder="请输入添加人姓名"></el-input>
+        </el-form-item>
+      
+        <el-form-item label="类别:">
+          <el-select v-model="formData.type" filterable clearable placeholder="请选择">
+            <el-option label="请选择" value="-1"></el-option>
+            <el-option label="中文" value="0"></el-option>
+            <el-option label="英文" value="1"></el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item>
+          <button type="button" class="btn" @click="onSubmit"><i class="fa fa-search"></i>&nbsp;查询</button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <div class="operation-module">
+      <button type="button" class="o-btn" @click.stop="set_add = true"><i class="fa fa-plus"></i>新增</button>
+
+      <el-dialog title="新增" v-model="set_add" size="tiny" align="left"
+             class="reviseForm" top="5%">
+        <el-form :model="addForm" :rules="reviseRules" ref="addForm" label-width="100px"
+             class="demo-ruleForm">
+          <el-form-item label="类别" prop="type">
+            <el-select v-model="addForm.type" filterable placeholder="请选择">
+              <el-option label="中文" value="0"></el-option>
+              <el-option label="英文" value="1"></el-option>
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="链接" prop="url">
+            <el-input v-model="addForm.url"></el-input>
+          </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+                    <el-button @click.stop="resetForm('addForm')">取 消</el-button>
+                    <el-button type="primary" @click="addFormSubmit('addForm',addForm)">确 定</el-button>
+                </span>
+      </el-dialog>
+    </div>
+
+    <div class="table-module">
+      <template>
+        <el-table :data="tableData" :highlight-current-row="true" style="width: 100%">
+          <el-table-column label="类别" width="50" align="center">
+            <template scope="scope">
+              <span v-if="scope.row.type==0">中文</span>
+              <span v-if="scope.row.type==1">英文</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="url" label="采集地址" width="300" align="center">
+            <template scope="scope">
+              <a v-bind:href="scope.row.url" target="_bank">{{scope.row.url}}</a>
+            </template>
+          </el-table-column>
+          <el-table-column prop="sum" label="产品总数" width="120" align="center"></el-table-column>
+          <el-table-column prop="author_name" label="添加人" width="120" align="center"></el-table-column>
+          <el-table-column prop="created_at" label="添加时间" align="center"></el-table-column>
+          <el-table-column prop="last_time" label="最后采集时间" align="center"></el-table-column>
+          <el-table-column label="激活状态" width="80" align="center">
+            <template scope="scope">
+              <span v-if="scope.row.status==1">开启</span>
+              <span v-if="scope.row.status==0" class="state wrong">关闭</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="150" align="center">
+            <template scope="scope">
+              <div class="">
+                <a href="#" class="alink" @click="handleEdit(scope.$index, scope.row)">修改</a>
+                <a v-if="scope.row.status==0" href="#" class="alink" @click="doStatus(scope.$index,scope.row)">开启</a>
+                <a v-if="scope.row.status==1" href="#" class="alink" @click="doStatus(scope.$index,scope.row)">关闭</a>
+                <a href="#" class="alink" @click="doDelete(scope.$index,scope.row)">删除</a>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
+
+      <el-dialog title="修改" v-model="reviseVisible" size="tiny" align="left" class="reviseForm" top="5%">
+        <el-form :model="reviseForm" :rules="reviseRules" ref="reviseForm" label-width="100px"
+             class="demo-ruleForm">
+          
+          <!--<div class="dialog-title">基本信息</div>-->
+          
+          <el-form-item label="类别" prop="type">
+            <el-select v-model="reviseForm.type" filterable placeholder="请选择">
+              <el-option label="中文" value="0"></el-option>
+              <el-option label="英文" value="1"></el-option>
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="链接" prop="url">
+            <el-input v-model="reviseForm.url"></el-input>
+          </el-form-item>
+
+        </el-form>
+        
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="reviseVisible = false">取 消</el-button>
+          <el-button type="primary" @click="submitForm('reviseForm',reviseForm)">确 定</el-button>
+        </span>
+      </el-dialog>
+      <el-pagination @size-change="handleSizeChange"
+               @current-change="handleCurrentChange"
+               :current-page="currentPage"
+               :page-sizes="[10, 20, 30, 40]"
+               :page-size="pageSize"
+               layout="total, sizes, prev, pager, next, jumper"
+               :total="total"
+               class="pagination">
+      </el-pagination>
+    </div>
+    
+    
+    <el-dialog title="删除" :close-on-click-modal="false" v-model="deleteVisible" size="tiny" align="left"  class="ruleAddForm">
+      <span>确定要删除吗？</span>
+      <span slot="footer" class="dialog-footer">
+      <el-button @click="deleteVisible = false">取 消</el-button>
+      <el-button type="primary" @click="doDelete()">确 定</el-button>
+    </span>
+    </el-dialog>
+
+    <el-dialog title="状态" :close-on-click-modal="false" v-model="statusVisible" size="tiny" align="left"  class="ruleAddForm">
+      <span>确定{{statusText}}要吗？</span>
+      <span slot="footer" class="dialog-footer">
+      <el-button @click="statusVisible = false">取 消</el-button>
+      <el-button type="primary" @click="doStatus()">确 定</el-button>
+    </span>
+    </el-dialog>
+    
+  </div>
+</div>
+
+<script src="/assets/js/jquery-2.1.4.min.js"></script>
+<script src="/assets/js/vue.js"></script>
+<script src="/assets/js/vue-resource.js"></script>
+<script src="/assets/js/element-ui.js"></script>
+<script src="/assets/js/interceptors.js"></script>
+<script src="/assets/js/fun.js"></script>
+<script>
+
+  var Main = {
+    mixins: [myMixin],
+    data: function () {
+      return {
+        formData: {
+          author_name: '',
+          type: '',
+          currentPage: myMixin.data().currentPage,
+          pageSize: myMixin.data().pageSize,
+        },
+        reviseVisible: false,
+        deleteVisible: false,
+        statusVisible: false,
+        selecteddRow: false,
+        set_add: false,
+        statusText:null,
+        index: null,
+        tableData: [],
+        addForm: {
+          type: '',
+          url: '',
+        },
+        reviseForm: {
+          id: '',
+          type: '',
+          url: '',
+        },
+        reviseRules: {
+          url: [
+            {required: true, message: '请输入链接', trigger: 'blur'},
+          ],
+          type: [
+            {required: true, message: '请选择类别', trigger: 'blur'}
+          ],
+        }
+      }
+    },
+ 
+    methods: {
+      
+      //分页
+      handleSizeChange: function (val) {
+        this.pageSize = val;
+        this.formData.currentPage = this.currentPage;
+        this.formData.pageSize = val;
+        this.getList(this.formData);
+      },
+      handleCurrentChange: function (val) {
+        this.currentPage = val;
+        this.formData.currentPage = val;
+        this.formData.pageSize = this.pageSize;
+        this.getList(this.formData);
+      },
+
+      //重置
+      resetForm: function (formName) {
+        this.set_add = false
+        this.$refs[formName].resetFields();
+      },
+      //新增
+      addFormSubmit: function (formName, data) {
+        var that = this;
+        this.$refs[formName].validate(function (valid) {
+          if (valid) {
+            Vue.http.post('/walmart/setAdd', data, {emulateJSON: true}).then(function (response) {
+              if (response.body.error == 0) {
+                location.reload();
+              } else {
+                that.error(response.body.msg);
+              }
+            }, function (response) {
+              that.error(response.body.msg);
+            });
+          } else {
+            that.error('表单填写有误');
+            return false;
+          }
+        });
+      },
+      //修改
+      handleEdit: function (index, row) {
+
+        this.reviseVisible = true;
+        this.index = index;
+
+        for (var key in row) {
+          this.reviseForm[key] = row[key];
+        }
+
+      },
+      
+      submitForm: function (formName, data) {
+        var that = this;
+        this.$refs[formName].validate(function (valid) {
+          if (valid) {
+            Vue.http.post('/walmart/setEdit', data, {emulateJSON: true}).then(function (response) {
+              console.log(response);
+              if (response.body.error == 0) {
+                for (var key in data) {
+                  that.tableData[that.index][key] = data[key];
+                }
+                that.reviseVisible = false;
+                that.success(response.body.msg);
+              } else {
+                that.error(response.body.msg);
+              }
+            }, function (response) {
+              that.error(response.body.msg);
+            });
+          } else {
+            that.error('表单填写有误');
+            return false;
+          }
+        });
+      },
+      
+      doDelete: function (val, row) {
+        if(row) {
+          this.deleteVisible = true;
+          this.selecteddRow = row;
+          return
+        }
+        
+        var that = this;
+        var id = this.selecteddRow.id;
+        
+        Vue.http.post('/walmart/setDel',{id:id}).then(function (response) {
+          if (response.body.error == 0) {
+            that.success(response.body.msg);
+            that.deleteVisible = false;
+            that.getList(that.formData);
+          } else {
+            that.error(response.body.msg);
+          }
+        }, function (response) {
+          that.error(response.body.msg);
+        });
+      },
+
+      doStatus: function (val, row) {
+        if(row) {
+          this.statusVisible = true;
+          this.selecteddRow = row;
+          this.statusText = row.status==1?'关闭':'开启';
+          return
+        }
+        
+        var that = this;
+        var id = this.selecteddRow.id;
+        var status = this.selecteddRow.status;
+        
+        Vue.http.post('/walmart/setStatus',{id:id,status:status}).then(function (response) {
+          if (response.body.error == 0) {
+            that.success(response.body.msg);
+            that.statusVisible = false;
+            that.getList(that.formData);
+          } else {
+            that.error(response.body.msg);
+          }
+        }, function (response) {
+          that.error(response.body.msg);
+        });
+      },
+      
+      //查询
+      onSubmit: function () {
+          var that = this;
+          this.currentPage = 1
+          this.formData.currentPage = this.currentPage;
+          this.formData.pageSize = this.pageSize;
+          Vue.http.post('/walmart/set', this.formData, {emulateJSON: true}).then(function (response) {
+              that.tableData = response.body.data;
+              that.total = response.body.total;
+              // that.dropdown = response.body.data.dropdown;
+          }, function (response) {
+              console.log("查询失败")
+          });
+      },
+      getList: function(option) {
+          var that = this;
+          Vue.http.post('/walmart/set', option, {emulateJSON: true}).then(function (response) {
+              that.tableData = response.body.data;
+              that.total = response.body.total;
+              // that.dropdown = response.body.data.dropdown;
+          }, function (response) {
+              console.log("查询失败")
+          });
+      },
+  
+    },
+    created: function () {
+        var that = this;
+        this.getList(this.formData);
+    }
+  };
+  var Ctor = Vue.extend(Main);
+  Vue.http.options.emulateJSON = true;
+  new Ctor().$mount('#app');
+</script>
+</body>
+</html>

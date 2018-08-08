@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>用户</title>
+	<link rel="stylesheet" type="text/css" href="/assets/css/reset.css">
+	<link href="/assets/css/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="/assets/css/element-ui1413.css">
+	<link rel="stylesheet" type="text/css" href="/assets/css/components.css">
+
+</head>
+<body>
+<div id="app">
+	<div class="main-content">
+
+		<div class="search-module">
+			<el-form
+					:inline="true"
+					:model="formData"
+					label-position="right"
+					label-width="75px"
+					class="demo-form-inline">
+				<el-form-item label="SKU:">
+					<el-input v-model="formData.sku" placeholder="SKU"></el-input>
+				</el-form-item>
+				<el-form-item label="EAN:">
+					<el-input v-model="formData.ean_code" placeholder="EAN"></el-input>
+				</el-form-item>
+				
+
+				<el-form-item>
+					<button type="button" class="btn" @click="onSubmit"><i class="fa fa-search"></i>&nbsp;查询</button>
+				</el-form-item>
+			</el-form>
+		</div>
+
+		<div class="operation-module">
+			<!--<button type="button" class="o-btn" @click.stop="user_add = true"><i class="fa fa-plus"></i>新增</button>-->
+			<button type="button" class="o-btn" @click="importorder"><i class="fa fa-sign-in"></i>导入</button>
+			<el-dialog title="新增" v-model="user_add" size="tiny" align="left"
+					   class="reviseForm" top="5%">
+				<el-form :model="addUserForm" :rules="reviseRules" ref="addUserForm" label-width="100px"
+						 class="demo-ruleForm">
+					
+					<el-form-item label="用户名" prop="username">
+						<el-input v-model="addUserForm.username"></el-input>
+						<p>(登陆账号)</p>
+					</el-form-item>
+					<el-form-item label="姓名" prop="realname">
+						<el-input v-model="addUserForm.realname"></el-input>
+					</el-form-item>
+					<el-form-item label="登录密码" prop="password">
+						<el-input v-model="addUserForm.password"></el-input>
+					</el-form-item>
+
+					<el-form-item label="邮箱" prop="email">
+						<el-input v-model="addUserForm.email"></el-input>
+						<p>(可作为登陆账号使用)</p>
+					</el-form-item>
+					<el-form-item label="手机号" prop="phone">
+						<el-input v-model="addUserForm.phone"></el-input>
+						<p>(可作为登陆账号使用)</p>
+					</el-form-item>
+					<el-form-item label="QQ号" prop="qq">
+						<el-input v-model="addUserForm.qq"></el-input>
+					</el-form-item>
+
+				
+					<el-form-item label="是否激活" prop="status">
+						<el-select v-model="addUserForm.status" filterable placeholder="请选择">
+							<el-option label="是" value="1"></el-option>
+							<el-option label="否" value="0"></el-option>
+						</el-select>
+						<p>(激活后才能登录)</p>
+					</el-form-item>
+				</el-form>
+				<span slot="footer" class="dialog-footer">
+                    <el-button @click.stop="resetForm('addUserForm')">取 消</el-button>
+                    <el-button type="primary" @click="addForm('addUserForm',addUserForm)">确 定</el-button>
+                </span>
+			</el-dialog>
+		</div>
+		
+		
+		<el-dialog title="导入分类" :close-on-click-modal="true" v-model="srow" size="tiny">
+			<div class="detail-info">
+				<el-row>
+					<el-col :span="24">
+						<div class="text-box">
+							<p>点击下载模版&nbsp;:</p>
+							<a target="_blank" type="primary" href="/uploads/ean/ean_put_temp/ean_put_temp.xls"><el-button type="text">EAN模板</el-button></a>
+						</div>
+					</el-col>
+					<el-col :span="24">
+						<div class="text-box" style="margin-top: 10px">
+							<p>请选择文件&nbsp;:</p>
+							<el-upload class="upload-demo"
+									   action="/ean/ean_put/"
+									   :on-success="successe"
+									   :file-list="fileList3">
+								<el-button size="small" type="primary">点击上传
+								</el-button>
+								<div slot="tip" class="el-upload__tip">
+									只能上传excel文件，且不超过50M
+								</div>
+							</el-upload>
+						</div>
+					</el-col>
+				</el-row>
+			</div>
+			<span slot="footer" class="dialog-footer">
+                <el-button @click="srow = false">关闭</el-button>
+            </span>
+		</el-dialog>
+
+		<div class="table-module">
+			<template>
+				<el-table :data="tableData" :highlight-current-row="true" style="width: 100%">
+					<el-table-column type="index" label="序号" width="150" align="center"></el-table-column>
+					<el-table-column  prop="id" label="ID" width="150" align="center"></el-table-column>
+					<el-table-column prop="ean_code" label="EAN码" width="300" align="center"></el-table-column>
+					<el-table-column prop="sku" label="渠道sku" align="center">
+						<template scope="scope">
+							<span v-if="scope.row.is_use==1">{{scope.row.sku}}</span>
+							
+						</template>
+					</el-table-column>
+					<el-table-column prop="is_use" label="是否使用" align="center">
+						<template scope="scope">
+							<span v-if="scope.row.is_use==1">使用</span>
+							<span v-if="scope.row.is_use==2">未使用</span>
+						</template>
+					</el-table-column>
+					
+					<el-table-column label="操作" width="150" align="center">
+						<template scope="scope">
+							<div class="">
+								<!--<a href="#" class="alink" @click="handleEdit(scope.$index, scope.row)">修改</a>-->
+								<a href="#" class="alink" @click="doDelete(scope.$index,scope.row)">删除</a>
+
+							</div>
+						</template>
+					</el-table-column>
+				</el-table>
+			</template>
+
+			<el-dialog title="修改" v-model="reviseVisible" size="tiny" align="left" class="reviseForm" top="5%">
+				<el-form :model="reviseForm" :rules="reviseRules" ref="reviseForm" label-width="100px"
+						 class="demo-ruleForm">
+					
+					<!--<div class="dialog-title">基本信息</div>-->
+					
+					<el-form-item label="用户名" prop="username">
+						<el-input v-model="reviseForm.username"></el-input>
+						<p>(登陆账号)</p>
+					</el-form-item>
+					<el-form-item label="姓名" prop="realname">
+						<el-input v-model="reviseForm.realname"></el-input>
+					</el-form-item>
+					<el-form-item label="登录密码" prop="password">
+						<el-input v-model="reviseForm.password"></el-input>
+					</el-form-item>
+
+					<el-form-item label="邮箱" prop="email">
+						<el-input v-model="reviseForm.email"></el-input>
+						<p>(可作为登陆账号使用)</p>
+					</el-form-item>
+					<el-form-item label="手机号" prop="phone">
+						<el-input v-model="reviseForm.phone"></el-input>
+						<p>(可作为登陆账号使用)</p>
+					</el-form-item>
+					<el-form-item label="QQ号" prop="qq">
+						<el-input v-model="reviseForm.qq"></el-input>
+					</el-form-item>
+					
+			
+					<el-form-item label="是否激活" prop="status">
+						<el-select v-model="reviseForm.status" filterable placeholder="请选择">
+							<el-option label="是" value="1"></el-option>
+							<el-option label="否" value="0"></el-option>
+						</el-select>
+						<p>(激活后才能登录)</p>
+					</el-form-item>
+				</el-form>
+				
+				<span slot="footer" class="dialog-footer">
+					<el-button @click="reviseVisible = false">取 消</el-button>
+					<el-button type="primary" @click="submitForm('reviseForm',reviseForm)">确 定</el-button>
+				</span>
+			</el-dialog>
+			<el-pagination @size-change="handleSizeChange"
+						   @current-change="handleCurrentChange"
+						   :current-page="currentPage"
+						   :page-sizes="[10, 20, 30, 40]"
+						   :page-size="pageSize"
+						   layout="total, sizes, prev, pager, next, jumper"
+						   :total="total"
+						   class="pagination">
+			</el-pagination>
+		</div>
+		
+		
+		<el-dialog title="删除" :close-on-click-modal="false" v-model="deleteVisible" size="tiny" align="left"  class="ruleAddForm">
+			<span>确定要删除吗？</span>
+			<span slot="footer" class="dialog-footer">
+			<el-button @click="deleteVisible = false">取 消</el-button>
+			<el-button type="primary" @click="doDelete()">确 定</el-button>
+		</span>
+		</el-dialog>
+		
+	</div>
+</div>
+
+<script src="/assets/js/jquery-2.1.4.min.js"></script>
+<script src="/assets/js/vue-2.4.0.js"></script>
+<script src="/assets/js/vue-resource.js"></script>
+<script src="/assets/js/element-ui1413.js"></script>
+<script src="/assets/js/interceptors.js"></script>
+<script src="/assets/js/fun.js"></script>
+<script>
+
+	var Main = {
+		mixins: [myMixin],
+		data: function () {
+			return {
+				formData: {
+					sku: '',
+					ean_code: '',
+					department_ids: '',
+					currentPage: myMixin.data().currentPage,
+					pageSize: myMixin.data().pageSize,
+				},
+				reviseVisible: false,
+				deleteVisible: false,
+				selecteddRow: false,
+				user_add: false,
+				user_delete: false,
+                srow: false,
+				fileList3:[],
+				index: null,
+				tableData: [],
+				addUserForm: {
+					username: '',
+					realname: '',
+					password: '',
+					email: '',
+					phone: '',
+					qq: '',
+					type: '',
+					user_group_id: '',
+					status: '',
+					department_ids: [],
+				},
+				reviseForm: {
+					id: '',
+					username: '',
+					realname: '',
+					password: '',
+					email: '',
+					phone: '',
+					qq: '',
+					type: '',
+					user_group_id: '',
+					status: '',
+					department_ids: [],
+				},
+				dropdown: {
+				    role: [],
+					department: [],
+					department_edit: [],
+					department_all: [],
+				},
+				company: [],
+				user_group: [],
+				is_admin: false,
+				reviseRules: {
+					username: [
+						{required: true, message: '请输入用户名', trigger: 'blur'},
+						{min: 4, max: 16, message: '长度在 4 到 16 个字符', trigger: 'blur'}
+					],
+					realname: [
+						{required: true, message: '请输入姓名', trigger: 'blur'},
+						{min: 2, max: 32, message: '长度在 2 到 32 个字符', trigger: 'blur'}
+					],
+					password: [
+						{required: true, message: '请输入密码', trigger: 'blur'},
+					],
+					email: [
+						{required: true, message: '请输入邮箱地址', trigger: 'blur'},
+						{type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur,change'}
+					],
+					phone: [
+						{required: true, message: '请输入手机号码', trigger: 'blur'},
+						{min: 11, max: 11, message: '请输入正确的手机号码', trigger: 'blur,change'}
+					],
+					qq: [
+						{required: true, message: '请输入QQ号码', trigger: 'blur'}
+					],
+					type: [
+						{required: true, message: '请选择', trigger: 'blur'}
+					],
+					user_group_id: [
+						{required: true, message: '请选择', trigger: 'blur'}
+					],
+					status: [
+						{required: true, message: '请选择', trigger: 'blur'}
+					],
+                    department_ids: [
+                        {required: true, type: 'array', message: '请选择', trigger: 'blur'}
+                    ]
+				}
+			}
+		},
+ 
+		methods: {
+			
+			//分页
+			handleSizeChange: function (val) {
+				this.pageSize = val;
+				this.formData.currentPage = this.currentPage;
+				this.formData.pageSize = val;
+				this.getList(this.formData);
+			},
+			handleCurrentChange: function (val) {
+				this.currentPage = val;
+				this.formData.currentPage = val;
+				this.formData.pageSize = this.pageSize;
+				this.getList(this.formData);
+			},
+
+			//重置
+			resetForm: function (formName) {
+				this.user_add = false
+				this.$refs[formName].resetFields();
+			},
+			//新增
+			addForm: function (formName, data) {
+				var that = this;
+
+				console.log(data);
+				this.$refs[formName].validate(function (valid) {
+					if (valid) {
+						Vue.http.post('/ean/add', data, {emulateJSON: true}).then(function (response) {
+							if (response.body.error == 0) {
+								location.reload();
+							} else {
+								that.error(response.body.msg);
+							}
+						}, function (response) {
+							that.error(response.body.msg);
+						});
+					} else {
+						that.error('表单填写有误');
+						return false;
+					}
+				});
+			},
+			//修改
+			handleEdit: function (index, row) {
+
+				this.reviseVisible = true;
+				this.index = index;
+
+				console.log(row);
+
+				for (var key in row) {
+					this.reviseForm[key] = row[key];
+
+                    if(key == 'department_ids' && key == '') {
+                        this.reviseForm.department_ids = [];
+                    }
+
+					//patch
+                    Array.prototype.contains = function (obj) {
+                        var i = this.length;
+                        while (i--) {
+                            if (this[i] == obj) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+                    
+                    if(key == 'department_ids') {
+                        this.dropdown.department_edit = [];
+					    var department_edit = [];
+					    var dep_all = this.dropdown.department_all;
+					    for(var i in dep_all) {
+					        var depart_ids = (row[key] + '').split(',');
+							var bool = depart_ids.contains(dep_all[i].id);
+							if(bool) {
+                                department_edit.push(dep_all[i]);
+							}
+						}
+					    this.dropdown.department_edit = department_edit;
+					    //batch 如果是超级管理员，那么显示全部的部门
+						if(this.is_admin == true) {
+						    this.dropdown.department_edit = dep_all;
+						}
+					}
+				}
+
+
+			},
+			
+			submitForm: function (formName, data) {
+				var that = this;
+				this.$refs[formName].validate(function (valid) {
+					if (valid) {
+						Vue.http.post('/user/edit', data, {emulateJSON: true}).then(function (response) {
+							console.log(response);
+							if (response.body.error == 0) {
+								for (var key in data) {
+									that.tableData[that.index][key] = data[key];
+								}
+								that.reviseVisible = false;
+								that.success('修改成功');
+							} else {
+								that.error(response.body.msg);
+							}
+						}, function (response) {
+							that.error(response.body.msg);
+						});
+					} else {
+						that.error('表单填写有误');
+						return false;
+					}
+				});
+			},
+			
+			doDelete: function (val, row) {
+				if(row) {
+					this.deleteVisible = true;
+					this.selecteddRow = row;
+					return
+				}
+				
+				var that = this;
+				var id = this.selecteddRow.id;
+				
+				Vue.http.get('/ean/delete?id=' + id).then(function (response) {
+					if (response.body.error == 0) {
+						that.success('删除成功');
+						that.deleteVisible = false;
+						that.getList(that.formData);
+						
+					} else {
+						that.error(response.body.msg);
+					}
+				}, function (response) {
+					that.error(response.body.msg);
+				});
+			},
+			
+            //导入
+            importorder:function(){
+                this.srow = true;
+                this.fileList3 = [];
+                // console.log(1);
+            },
+            successe:function(response, file, fileList){
+                var that = this;
+                if(response.s==1){
+                    that.success(response.msg);
+                    that.srow = false;
+                }else if(response.s==0){
+                    that.success(response.msg);
+                    that.srow = false;
+
+                }
+            },
+			
+			//查询
+			onSubmit: function () {
+
+                var that = this;
+				this.currentPage = 1
+                this.formData.currentPage = this.currentPage;
+                this.formData.pageSize = this.pageSize;
+                Vue.http.post('/ean/index', this.formData, {emulateJSON: true}).then(function (response) {
+                    that.tableData = response.body.data;
+                    that.total = response.body.total;
+                    // that.dropdown = response.body.data.dropdown;
+                }, function (response) {
+                    console.log("查询失败")
+                });
+			},
+			getList: function(option) {
+
+                var that = this;
+                Vue.http.post('/ean/index', option, {emulateJSON: true}).then(function (response) {
+                	console.log( response.body.total);
+					that.tableData = response.body.data;
+					that.total = response.body.total;
+                    // that.dropdown = response.body.data.dropdown;
+                }, function (response) {
+                    console.log("查询失败")
+                });
+			},
+	
+		},
+		created: function () {
+		    var that = this;
+		    this.getList(this.formData);
+		}
+	};
+	var Ctor = Vue.extend(Main);
+	Vue.http.options.emulateJSON = true;
+	new Ctor().$mount('#app');
+</script>
+</body>
+</html>

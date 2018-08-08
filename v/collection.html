@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+
+	<title>产品管理</title>
+	<link rel="stylesheet" type="text/css" href="/assets/css/reset.css">
+	<link href="/assets/css/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="/assets/css/element-ui1413.css">
+	<link rel="stylesheet" type="text/css" href="/assets/css/components.css">
+	<style>
+		.state1{color:#1783e7}
+		.state2{color:#33cc00}
+		.state3{color:green}
+		.state4{color:red}
+		textarea{font-family:tahoma;}
+		
+		#stable{width:96%;margin:0px 20px;}
+		#stable th{background:#eee;width:90%;padding:7px 15px;border:1px solid #eee;}
+		#stable td{padding:9px 15px;border:1px solid #eee;text-align:left;line-height:1.5}
+		td.td{width:20%;color:#333;}
+	
+	</style>
+
+</head>
+<body>
+<div id="app">
+	<div class="main-content">
+		
+		<div class="search-module">
+			<el-form
+					:inline="true"
+					:model="formData"
+					label-position="right"
+					label-width="75px"
+					class="demo-form-inline">
+				<el-form-item label="产品搜索:">
+					<el-input v-model="formData.pro" placeholder="中法文标题，产品ID，SKU"></el-input>
+				</el-form-item>
+				<el-form-item label="类别:">
+					<el-autocomplete
+							class="inline-input"
+							v-model="formData.category"
+							:fetch-suggestions="querySearchAsync"
+							placeholder="请输入类别"
+							:trigger-on-focus="false"
+							@select="handleFormSelect"
+					></el-autocomplete>
+				
+				</el-form-item>
+				<el-form-item label="是否评价:">
+					<el-select v-model="formData.reviews" filterable clearable placeholder="请选择">
+						<el-option label="是" value="1"></el-option>
+						<el-option label="否" value="2"></el-option>
+					</el-select>
+				</el-form-item>
+				<el-form-item label="跟卖人员:">
+					<el-select  v-model="formData.gm_ed" filterable clearable placeholder="请选择">
+						
+						<el-option v-for="gmed in userData" :label="gmed.username" :value="gmed.id"></el-option>
+					</el-select>
+				</el-form-item>
+				
+				<el-form-item label="刊登人员:">
+					<el-select  v-model="formData.kd_ed" filterable clearable placeholder="请选择">
+						
+						<el-option v-for="kded in userData" :label="kded.username" :value="kded.id"></el-option>
+					</el-select>
+				</el-form-item>
+				<el-form-item label="采集时间:">
+					<el-date-picker v-model="formData.add_time" type="daterange" placeholder="选择日期范围">
+					</el-date-picker>
+				</el-form-item>
+				
+				
+				<el-form-item>
+					<button type="button" class="btn" @click="onSubmit"><i class="fa fa-search"></i>&nbsp;查询</button>
+				</el-form-item>
+			</el-form>
+		</div>
+		
+		<div class="operation-module"><button type="button" class="o-btn" @click="delAll(true)"><i class="fa fa-trash-o"></i>批量删除</button></div>
+		<div class="table-module">
+			<template>
+				<el-table :data="tableData" :highlight-current-row="true" border style="width: 100%" @selection-change="handleSelectionChange">
+					<el-table-column type="selection" width="55" align="center">
+					</el-table-column>
+					<el-table-column prop="id" label="ID" align="center"></el-table-column>
+					<el-table-column label="图片"  align="center">
+						<template scope="scope">
+							<a target="_blank" class="alink" :href="'https://www.cdiscount.com/'+scope.row.cd_id+'.html'"><img :src="scope.row.simg"></a>
+						</template>
+					</el-table-column>
+					<el-table-column prop="title1" label="标题" width="180" align="left"></el-table-column>
+					<el-table-column prop="title1_cn" label="中文标题"  align="center"></el-table-column>
+					<el-table-column prop="sku" label="SKU"  align="center" type="hidden"></el-table-column>
+					<el-table-column label="类别"  width="200" align="left">
+						<template scope="scope">
+							<p>采集类别：{{scope.row.category_name_cn}}</p>
+							<p>类别编码：{{scope.row.category_code}}</p>
+							<p>类别导航：{{scope.row.navs}}</p>
+						</template>
+					</el-table-column>
+					<el-table-column label="价格"  width="150" align="left">
+						<template scope="scope">
+							<p>售价：{{scope.row.price}}</p>
+							<p>最低跟卖价：{{scope.row.gm_price}}</p>
+							<p>最终价格：{{scope.row.price_my}}</p>
+							<p>运费：{{scope.row.shipfee}}</p>
+						</template>
+					</el-table-column>
+					<el-table-column label="参数"  align="left">
+						<template scope="scope">
+							<p v-if="scope.row.sizes">尺寸：{{scope.row.sizes}}</p>
+							<p v-if="scope.row.colors">颜色：{{scope.row.colors}}</p>
+						</template>
+					</el-table-column>
+					
+					<el-table-column label="评价" width="120" align="left">
+						<template scope="scope">
+							<p>星级：{{scope.row.stars}}</p>
+							<p>评价数量：{{scope.row.reviews}}</p>
+							<p>库存：{{scope.row.stock}}</p>
+						</template>
+					</el-table-column>
+					<el-table-column prop="maidian" label="卖点" width="120" align="left"></el-table-column>
+					<el-table-column prop="laiyuan" label="来源"  align="center"></el-table-column>
+					<el-table-column prop="gmer_id" label="跟卖"  align="center"></el-table-column>
+					<el-table-column prop="kder_id" label="刊登"   align="center"></el-table-column>
+					<el-table-column label="操作"  align="left">
+						<template scope="scope">
+							<div class="">
+								<!--<a href="#" class="alink" @click="handleEdit(scope.$index, scope.row)">修改</a>-->
+								<p><a href="#" class="alink" @click="handleEdit(scope.$index, scope.row)">刊登</a></p>
+								
+								<p><a href="#" class="alink" @click="handGm(scope.$index,scope.row)">跟卖</a></p>
+								<p><a href="#" class="alink" @click="doDelete(scope.$index,scope.row)">删除</a></p>
+							
+							</div>
+						</template>
+					</el-table-column>
+				</el-table>
+			</template>
+			
+			<el-dialog title="刊登" v-model="editVisible" size="small" align="left" class="editForm" top="5%">
+				<el-form :model="editForm" :rules="reviseRules" ref="editForm" label-width="100px"
+						 class="demo-ruleForm">					
+					<!--<div class="dialog-title">基本信息</div>-->
+					
+					<el-row>
+						<el-col :span="6">
+							<el-form-item label="图片" prop="simg">
+								<el-input v-model="editForm.simg" style="width:120px;"></el-input>
+								<template scope="scope" >
+									
+									<a target="_blank" class="alink" :href="'https://www.cdiscount.com/'+gmForm.cd_id+'.html'"><img :src="editForm.simg" style="width:100px;"></a>
+								
+								</template>
+							</el-form-item>
+						</el-col>
+						
+						<el-col span="18">
+							<el-row>
+							
+							<el-form-item label="短标题" prop="title1">
+								<el-input v-model="editForm.title1" ></el-input>
+							</el-form-item>
+							</el-row>
+							
+							<el-row>
+								<el-form-item label="产品卖点" prop="maidian">
+									<el-input v-model="editForm.maidian"></el-input>
+								</el-form-item>
+							</el-row>
+						</el-col>
+						
+					
+						
+					</el-row>
+					
+					
+					
+					<el-row>
+						<el-form-item label="长标题" prop="title">
+							<el-input v-model="editForm.title"></el-input>
+						</el-form-item>
+					
+					</el-row>
+					
+					<el-row>
+						<el-form-item label="产品描述" prop="desc">
+							<el-input v-model="editForm.desc"  type="textarea" :rows="3"></el-input>
+						</el-form-item>
+					
+					</el-row>
+					
+					
+					<el-row>
+						<el-col :span="8">
+							<el-form-item label="性别" prop="sex">
+								<el-select  v-model="editForm.sex"    placeholder="请选择" >
+									<el-option label="请选择" value=""></el-option>
+									<el-option v-for="(item,key) in sexData" :key="key" :label="item" :value="key"></el-option>
+								
+								</el-select>
+							</el-form-item>
+						</el-col>
+						<el-col :span="8">
+							<el-form-item label="受众类型" prop="audiences">
+								
+								<el-select  v-model="editForm.audiences"    placeholder="请选择" >
+									<el-option label="请选择" value=""></el-option>
+									<el-option v-for="(item,key) in audiencesData" :key="key" :label="item" :value="key"></el-option>
+								</el-select>
+							
+							</el-form-item>
+						
+						</el-col>
+						<el-col :span="8">
+							<el-form-item label="店铺:" prop="store">
+								<el-select  v-model="editForm.store"    placeholder="请选择" >
+									<el-option label="请选择" value=""></el-option>
+									<el-option v-for="store in storeData" :label="store.store_code" :value="store.id"></el-option>
+								</el-select>
+							</el-form-item>
+						</el-col>
+						<el-col :span="8">
+							<el-form-item label="价格" prop="price_my">
+								<el-input v-model="editForm.price_my"></el-input>
+							</el-form-item>
+						</el-col>
+						<el-col :span="8">
+							<el-form-item label="运费" prop="shipfee">
+								<el-input v-model="editForm.shipfee"></el-input>
+							</el-form-item>
+						</el-col>
+					
+					</el-row>
+					
+					<el-row>
+						<el-col :span="8">
+					<el-form-item label="母体SKU" prop="mt_sku" v-if="skuData.mt_sku !== ''" >
+						<el-input v-model="editForm.mt_sku" :disabled="true"></el-input>
+					</el-form-item>
+						</el-col>
+					</el-row>
+					
+				<!--	<el-row>
+					<el-form-item label="子体SKU" prop="zt_sku" >
+						<el-input v-model="zt_sku" v-for="(zt_sku,key) in editForm.zt_sku" :disabled="true" style="width: 171.33px;margin-right: 60px;margin-bottom:24px" ></el-input>
+					</el-form-item>
+					</el-row>-->
+				
+					<el-form-item label="颜色" v-if="colorBox !== '' ">
+					<template>
+						<el-checkbox-group v-model="colorList">
+							<el-checkbox :label="colo"  v-for="(colo,key) in colorBox"  @change="checkColor(key)">{{colo}}</el-checkbox>
+						</el-checkbox-group>
+					</template>
+					</el-form-item>
+					<el-form-item label="尺寸"  v-if="sizeBox !== '' ">
+						<template>
+							<el-checkbox-group v-model="sizeList">
+								<el-checkbox   :label="siz" v-for="(siz,key) in sizeBox" @change="checkSize">{{siz}}</el-checkbox>
+							</el-checkbox-group>
+						</template>
+					</el-form-item>
+					
+					
+				</el-form>
+				
+				<span slot="footer" class="dialog-footer">
+					<el-button @click="editVisible = false">取 消</el-button>
+					<el-button type="primary" @click="submitForm('editForm',editForm)">确 定</el-button>
+				</span>
+			</el-dialog>
+			
+			
+			<el-dialog title="跟卖" v-model="gmVisible" size="small" align="left" class="gmForm" top="5%">
+				<el-form :model="gmForm" :rules="gmRules" ref="gmForm" label-width="100px"
+						 class="demo-ruleForm">
+                    
+                    <el-row>
+                    <el-col :span="6">
+                        <el-form-item label="图片" prop="simg">
+                            <el-input v-model="gmForm.simg" style="width:120px;"></el-input>
+                            <template scope="scope" >
+                                
+                                <a target="_blank" class="alink" :href="'https://www.cdiscount.com/'+editForm.cd_id+'.html'"><img :src="gmForm.simg" style="width:100px;"></a>
+                            
+                            </template>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+					<!--<div class="dialog-title">基本信息</div>-->
+                    <el-form-item label="产品ID" prop="qd_sku">
+                        <el-input v-model="gmForm.qd_sku" ></el-input>
+                    </el-form-item>
+                    </el-col>
+                    <el-col span="12">
+                    <el-form-item label="CD平台ID" prop="cd_id">
+                        <el-input v-model="gmForm.cd_id" ></el-input>
+                    </el-form-item>
+                    </el-col>
+                    
+                    </el-row>
+					<el-row>
+					<el-col>
+						<el-form-item label="渠道sku" prop="qd_sku_my">
+							<el-input v-model="gmForm.qd_sku_my" ></el-input>
+						</el-form-item>
+					</el-col>
+						
+					
+						
+					
+					</el-row>
+                    
+                   <el-row>
+                       <el-col span="8">
+					<el-form-item label="价格" prop="price_my_gm">
+						<el-input v-model="gmForm.price_my_gm" ></el-input>
+					</el-form-item>
+                       </el-col>
+                       <el-col span="8">
+                    <el-form-item label="底价" prop="price_my_d">
+                        <el-input v-model="gmForm.price_my_d" ></el-input>
+                    </el-form-item>
+                       </el-col>
+                       <el-col span="8">
+					<el-form-item label="运费" prop="shipfee">
+						<el-input v-model="gmForm.shipfee" ></el-input>
+					</el-form-item>
+                       </el-col>
+                   </el-row>
+                    
+                    <el-row>
+                        <el-col span="8">
+                            <el-form-item label="佣金比例" prop="commission_rate">
+                                <el-input v-model="gmForm.commission_rate" ></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col span="8">
+                            <el-form-item label="发货时效" prop="time_of_pre">
+                                <el-input v-model="gmForm.time_of_pre" ></el-input>
+                            </el-form-item>
+                        </el-col>
+	
+						<el-col :span="8">
+							<el-form-item label="店铺:" prop="store">
+								<el-select  v-model="gmForm.store"    placeholder="请选择" >
+									<el-option label="请选择" value=""></el-option>
+									<el-option v-for="store in storeData" :label="store.store_code" :value="store.id"></el-option>
+								</el-select>
+							</el-form-item>
+						</el-col>
+                        
+                    </el-row>
+    				<el-row>
+						<el-col span="8">
+							<el-form-item label="库存" prop="stock_1">
+								<el-input v-model="gmForm.stock_1" ></el-input>
+							</el-form-item>
+						</el-col>
+						<el-col span="8">
+							<el-form-item  prop="stock_2">
+								<el-input v-model="gmForm.stock_2" ></el-input>
+							</el-form-item>
+						</el-col>
+					</el-row>
+					<el-row>
+						<el-col span="8">
+							<el-form-item  prop="stock_3">
+								<el-input v-model="gmForm.stock_3" ></el-input>
+							</el-form-item>
+						</el-col>
+						<el-col span="8">
+							<el-form-item  prop="stock_4">
+								<el-input v-model="gmForm.stock_4" ></el-input>
+							</el-form-item>
+						</el-col>
+					</el-row>
+					<el-row>
+						<el-col span="8">
+							<el-form-item  prop="stock_5">
+								<el-input v-model="gmForm.stock_5" ></el-input>
+							</el-form-item>
+						</el-col>
+						<el-col span="8">
+							<el-form-item  prop="stock_5">
+								<el-input v-model="gmForm.stock_5" ></el-input>
+							</el-form-item>
+						</el-col>
+					</el-row>
+			
+				
+				</el-form>
+				
+				<span slot="footer" class="dialog-footer">
+					<el-button @click="gmVisible = false">取 消</el-button>
+					<el-button type="primary" @click="submitGm('gmForm',gmForm)">确 定</el-button>
+				</span>
+			</el-dialog>
+			
+			<el-pagination @size-change="handleSizeChange"
+						   @current-change="handleCurrentChange"
+						   :current-page="currentPage"
+						   :page-sizes="[10, 20, 30, 40]"
+						   :page-size="pageSize"
+						   layout="total, sizes, prev, pager, next, jumper"
+						   :total="total"
+						   class="pagination">
+			</el-pagination>
+		</div>
+		
+		<el-dialog title="批量删除" :close-on-click-modal="false" v-model="delAllVisible" size="tiny" align="left"  class="ruleAddForm">
+			<span>确定要批量删除吗？</span>
+			<span slot="footer" class="dialog-footer">
+      <el-button @click="delAllVisible = false">取 消</el-button>
+      <el-button type="primary" @click="delAll()">确 定</el-button>
+    </span>
+		</el-dialog>
+		
+		
+		<el-dialog title="删除" :close-on-click-modal="false" v-model="deleteVisible" size="tiny" align="left"  class="ruleAddForm">
+			<span>确定要删除吗？</span>
+			<span slot="footer" class="dialog-footer">
+			<el-button @click="deleteVisible = false">取 消</el-button>
+			<el-button type="primary" @click="doDelete()">确 定</el-button>
+		</span>
+		</el-dialog>
+	
+	</div>
+</div>
+
+<script src="/assets/js/jquery-2.1.4.min.js"></script>
+<script src="/assets/js/vue-2.4.0.js"></script>
+<script src="/assets/js/vue-resource.js"></script>
+<script src="/assets/js/element-ui1413.js"></script>
+<script src="/assets/js/interceptors.js"></script>
+<script src="/assets/js/fun.js"></script>
+<script>
+
+    var Main = {
+        mixins: [myMixin],
+        data: function () {
+            return {
+                formData: {
+                    pro:'',
+                    category:'',
+                    code:'',
+                    reviews:'',
+                    gm_ed:'',
+                    gm_ing:'',
+                    kd_ed:'',
+                    kd_ing:'',
+                    add_time:[],
+                    currentPage: myMixin.data().currentPage,
+                    pageSize: myMixin.data().pageSize,
+                },
+                qu_skuData:'',
+                
+				arr:[],
+                colorList:[],
+				sizeList:[],
+                colorBox:[],
+                sizeBox:[],
+				skuData:[],
+                audiencesData:[],
+                userData:[],
+                categoryData:[],
+                storeData:[],
+                brandData:[],
+                sexData:[],
+                checked:false,
+                checkedAll:false,
+                delVisible:false,
+                delRow:null,
+                delAllVisible:false,
+                delAllRow:null,
+                gmVisible: false,
+                editVisible: false,
+                deleteVisible: false,
+                selecteddRow: false,
+                user_add: false,
+                user_delete: false,
+                index: null,
+                tableData: [],
+                editForm: {
+                    desc:'',
+					title1:'',
+					mt_sku:'',
+                    title: '',
+                    brand: '',
+                    audiences:'',
+                    sku: '',
+                    price_my: '',
+                    shipfee: '',
+                    maidian: '',
+                    sex: '',
+                    colors: [],
+                    sizes:[],
+                    store:'',
+                    simgData:[]
+                },
+                gmForm: {
+                    stock_1:0,
+                    stock_2:0,
+                    stock_3:0,
+                    stock_4:0,
+                    stock_5:0,
+                    stock_6:0,
+                    qd_sku:'',
+                    qd_sku_my:'',
+                    price_my_gm: '',
+					store:'',
+                    stock: [],
+                    price: '',
+                    shipfee: '',
+                    price_my_d: '',
+                    cd_id:'',
+                    commission_rate:20,
+                    time_of_pre:4
+                },
+
+                dropdown: {
+                    role: [],
+                    department: [],
+                    department_edit: [],
+                    department_all: [],
+                },
+                company: [],
+                user_group: [],
+                is_admin: false,
+                reviseRules: {
+                    title1: [
+                        {required: true, message: '请输入标题', trigger: 'blur'}
+
+                    ],
+                    brand: [
+                        {required: true, message: '请选择品牌', trigger: 'blur'}
+                    ],
+                    sku: [
+                        {required: true, message: '请输入CD平台上的SKU', trigger: 'blur'}
+                    ],
+                    price: [
+                        {required: true, message: '请输入价格', trigger: 'blur'}
+                    ],
+                    shipfee: [
+                        {required: true, message: '请输入运费', trigger: 'blur'},
+                    ],
+                    maidian: [
+                        {required: true, message: '请输入产品卖点', trigger: 'blur'}
+                    ],
+                    sex: [
+                        {required: true, message: '请选择', trigger: 'blur'}
+                    ],
+                    store: [
+                        {required: true, message: '请选择', trigger: 'blur'}
+                    ]
+                },
+                gmRules: {
+                    qd_sku: [
+                        {required: true, message: '请输入产品ID', trigger: 'blur'}
+                    ],
+                    qd_sku_my: [
+                        {required: true, message: '请输入渠道sku', trigger: 'blur'}
+                    ],
+                    price_my_gm: [
+                        {required: true, message: '请输入价格', trigger: 'blur'}
+                    ],
+                    shipfee: [
+                        {required: true, message: '请输入运费', trigger: 'blur'},
+                    ],
+                    price_my_d:[
+						{required:true,message: '请输入底价' ,trigger: 'blur'},
+					],
+                    cd_id:[
+                        {required:true,message: '请输入CD平台的产品ID' ,trigger: 'blur'},
+                    ],
+                    store: [
+                        {required: true, message: '请选择', trigger: 'blur'}
+                    ]
+                }
+            }
+        },
+
+        methods: {
+            querySearchAsync(queryString, callback) {
+                var list = [{}];
+                //调用的后台接口
+                let url = "/collection/get_select_cat?queryData=" + queryString;
+                //从后台获取到对象数组
+                Vue.http.get( url ).then((response)=>{
+                    console.log(response);
+                    var data= response.body.data;
+                    //在这里为这个数组中每一个对象加一个value字段, 因为autocomplete只识别value字段并在下拉列中显示
+                    for(let i of data){
+                        i.value = i.name_cn +'----'+ i.cat_4;  //将想要展示的数据作为value
+                    }
+                    list = data;
+                    callback(list);
+                }).catch((error)=>{
+                    console.log(error);
+                });
+            },
+            handleFormSelect(item) {
+                console.log(item,'form');
+                this.formData.category=item.name_cn;
+
+            },
+            //分页
+            handleSizeChange: function (val) {
+                this.pageSize = val;
+                this.formData.currentPage = this.currentPage;
+                this.formData.pageSize = val;
+                this.getList(this.formData);
+            },
+            handleCurrentChange: function (val) {
+                this.currentPage = val;
+                this.formData.currentPage = val;
+                this.formData.pageSize = this.pageSize;
+                this.getList(this.formData);
+            },
+
+            handleSelectionChange: function(val) {
+                this.multipleSelection = val;
+            },
+
+            //重置
+            resetForm: function (formName) {
+                this.user_add = false
+                this.$refs[formName].resetFields();
+            },
+           //获取多选框的值
+			checkColor:function(key){
+   				var that =this;
+   				that.editForm.colors = that.colorList;
+				that.arr.push(key) ;
+   				that.editForm.simgData=that.arr;
+                console.log(that.editForm.simgData,'simgdata');
+ 				
+   				
+			},
+			checkSize : function(){
+                var that = this;
+                that.editForm.sizes = that.sizeList;
+			},
+			
+			changeStock:function(stoc){
+                console.log(stoc,"库存");
+			},
+			
+			
+	
+			
+            
+            //刊登
+            handleEdit: function (index, row) {
+                var that=this;
+                Vue.http.post('/collection/kd_before', row, {emulateJSON: true}).then(function (response) {
+                    that.skuData = response.body.data;
+                    that.editForm.mt_sku = response.body.data.mt_sku;
+                    that.colorBox = response.body.colorData;
+                    that.sizeBox  = response.body.sizeData;
+                    console.log(response);
+
+
+
+                }, function (response) {
+
+                });
+                that.editVisible = true;
+
+                that.index = index;
+
+                for (var key in row) {
+                    that.editForm[key] = row[key];
+                    //patch
+                    Array.prototype.contains = function (obj) {
+                        var i = that.length;
+                        while (i--) {
+                            if (that[i] == obj) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+
+                    if(key == 'department_ids') {
+                        that.dropdown.department_edit = [];
+                        var department_edit = [];
+                        var dep_all = that.dropdown.department_all;
+                        for(var i in dep_all) {
+                            var depart_ids = (row[key] + '').split(',');
+                            var bool = depart_ids.contains(dep_all[i].id);
+                            if(bool) {
+                                department_edit.push(dep_all[i]);
+                            }
+                        }
+                        that.dropdown.department_edit = department_edit;
+                        //batch 如果是超级管理员，那么显示全部的部门
+                        if(that.is_admin == true) {
+                            that.dropdown.department_edit = dep_all;
+                        }
+                    }
+
+                }
+
+
+            },
+
+            //跟卖
+            handGm: function (index, row) {
+
+                var that=this;
+                Vue.http.post('/collection/gm_before', row, {emulateJSON: true}).then(function (response) {
+                    that.gmForm.qd_sku = response.body.data.qu_sku;
+                    console.log(that.gmForm.qd_sku);
+                }, function (response) {
+
+                });
+                that.gmVisible = true;
+
+                that.index = index;
+
+                for (var key in row) {
+                    that.gmForm[key] = row[key];
+                    //patch
+                    Array.prototype.contains = function (obj) {
+                        var i = that.length;
+                        while (i--) {
+                            if (that[i] == obj) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+
+                    if(key == 'department_ids') {
+                        that.dropdown.department_edit = [];
+                        var department_edit = [];
+                        var dep_all = that.dropdown.department_all;
+                        for(var i in dep_all) {
+                            var depart_ids = (row[key] + '').split(',');
+                            var bool = depart_ids.contains(dep_all[i].id);
+                            if(bool) {
+                                department_edit.push(dep_all[i]);
+                            }
+                        }
+                        that.dropdown.department_edit = department_edit;
+                        //batch 如果是超级管理员，那么显示全部的部门
+                        if(that.is_admin == true) {
+                            that.dropdown.department_edit = dep_all;
+                        }
+                    }
+
+                }
+
+            },
+
+            submitForm: function (formName, data) {
+                var that = this;
+                this.$refs[formName].validate(function (valid) {
+                    if (valid) {
+                        Vue.http.post('/collection/kd', data, {emulateJSON: true}).then(function (response) {
+                            console.log(response);
+                            if (response.body.error == 0) {
+                                for (var key in data) {
+                                    that.tableData[that.index][key] = data[key];
+                                }
+                                that.editVisible = false;
+                                that.success('刊登成功');
+                            } else {
+                                that.error(response.body.msg);
+                            }
+                        }, function (response) {
+                            that.error(response.body.msg);
+                        });
+                    } else {
+                        that.error('表单填写有误');
+                        return false;
+                    }
+                });
+            },
+
+            submitGm: function (formName, data) {
+                var that = this;
+                this.$refs[formName].validate(function (valid) {
+                    if (valid) {
+                        Vue.http.post('/collection/gm', data, {emulateJSON: true}).then(function (response) {
+                            console.log(response);
+                            if (response.body.error == 0) {
+                                for (var key in data) {
+                                    that.tableData[that.index][key] = data[key];
+                                }
+                                that.gmVisible = false;
+                                that.success('跟卖成功');
+                            } else {
+                                that.error(response.body.msg);
+                            }
+                        }, function (response) {
+                            that.error(response.body.msg);
+                        });
+                    } else {
+                        that.error('表单填写有误');
+                        return false;
+                    }
+                });
+            },
+
+
+            checkAll:function(){
+                var data = this.tableData;
+                for(var k in data){
+                    if(this.checked ==true && data[k]['status']!=1){
+                        data[k]['checked'] = true;
+                    }else{
+                        data[k]['checked'] = false;
+                    }
+                }
+            },
+            checkone:function(){
+                var data = this.tableData;
+                var checked_num = 0;
+                var count_num = 0;
+                for(var k in data){
+                    if(data[k]['checked']==true){
+                        checked_num++;
+                    }
+
+                    if(data[k]['status']!=1){
+                        count_num++
+                    }
+                }
+                console.log(checked_num,count_num)
+                if(checked_num==count_num) this.checked = true;
+                else this.checked = false;
+            },
+            del: function (val, row) {
+                if(row) {
+                    this.delVisible = true;
+                    this.delRow = row;
+                    return
+                }
+
+                var that = this;
+                var id = this.delRow.id;
+
+                Vue.http.post('/gm/del',{id:id}).then(function (response) {
+                    if (response.body.error == 0) {
+                        that.success(response.body.msg);
+                        that.delVisible = false;
+                        that.getList(that.formData);
+                    } else {
+                        that.error(response.body.msg);
+                    }
+                }, function (response) {
+                    that.error(response.body.msg);
+                });
+            },
+            delAll: function (flag) {
+                
+                if(flag) {
+                    this.delAllVisible = true;
+                    return
+                }
+
+                var ids =[];
+                for(var i in this.multipleSelection) {
+                    ids.push(this.multipleSelection[i].id);
+                }
+                console.log(ids);
+				var that = this;
+
+                Vue.http.post('/collection/delAll',{id:ids},{emulateJSON: true}).then(function (response) {
+                    if (response.body.error == 0) {
+                        that.success(response.body.msg);
+                        that.delAllVisible = false;
+                        that.checked = false;
+                        that.getList(that.formData);
+                    } else {
+                        that.error(response.body.msg);
+                    }
+                }, function (response) {
+                    that.error(response.body.msg);
+                });
+            },
+
+            doDelete: function (val, row) {
+                if(row) {
+                    this.deleteVisible = true;
+                    this.selecteddRow = row;
+                    return
+                }
+
+                var that = this;
+                var id = this.selecteddRow.id;
+
+                Vue.http.get('/collection/delete?id=' + id).then(function (response) {
+                    if (response.body.error == 0) {
+                        that.success('删除成功');
+                        that.deleteVisible = false;
+                        that.getList(that.formData);
+
+                    } else {
+                        that.error(response.body.msg);
+                    }
+                }, function (response) {
+                    that.error(response.body.msg);
+                });
+            },
+
+
+
+            //查询
+            onSubmit: function () {
+                /* if(this.formData.add_time[0] instanceof Date && this.formData.add_time != '' && this.formData.add_time[0] != null && this.formData.add_time[1] != null){
+                     this.formData.add_time[0] = this.formatDate(this.formData.add_time[0]);
+                     this.formData.add_time[1] = this.formatDate(this.formData.add_time[1]);
+                 }*/
+                if(this.formData.add_time[0] instanceof Date && this.formData.add_time != '' && this.formData.add_time[0] != null && this.formData.add_time[1] != null) {
+                    this.formData.add_time[0] = this.formData.add_time[0] !== null && this.formData.add_time[0] !== undefined ? this.formData.add_time[0].toString() : '';
+                    this.formData.add_time[1] = this.formData.add_time[1] !== null && this.formData.add_time[1] !== undefined ? this.formData.add_time[1].toString() : '';
+                }
+                this.currentPage = 1
+                this.formData.currentPage = this.currentPage;
+                this.formData.pageSize = this.pageSize;
+                this.getList(this.formData)
+            },
+
+            getList: function(option) {
+
+                var that = this;
+                Vue.http.post('/collection/index', option, {emulateJSON: true}).then(function (response) {
+
+                    that.tableData = response.body.data;
+                    that.total = response.body.total;
+                    that.categoryData = response.body.categoryData;
+                    that.userData   = response.body.userData;
+                    that.brandData  = response.body.brandData;
+                    that.storeData  = response.body.storeData;
+                    that.sexData    = response.body.sexData;
+                    that.audiencesData = response.body.audiencesData;
+                    console.log(response);
+
+                }, function (response) {
+                    console.log("查询失败")
+                });
+            },
+
+        },
+        created: function () {
+            var that = this;
+            this.getList(this.formData);
+        }
+    };
+    var Ctor = Vue.extend(Main);
+    Vue.http.options.emulateJSON = true;
+    new Ctor().$mount('#app');
+</script>
+</body>
+</html>
